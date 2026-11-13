@@ -42,5 +42,37 @@
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
     "vitest": "^3.0.5"
+  },
+  "build": {
+    "appId": "io.novaos.desktop",
+    "productName": "NovaOS",
+    "copyright": "Copyright © 2026 NovaOS Platform Engineering",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "dir",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dir",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "dir",
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
   }
 }

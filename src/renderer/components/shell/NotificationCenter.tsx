@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShellNotification } from '@shared/types';
-import { Bell, BellOff, Trash2, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Bell, BellOff, Trash2 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 
 interface NotificationCenterProps {

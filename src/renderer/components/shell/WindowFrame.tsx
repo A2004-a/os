@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ShellWindow, Bounds, SnapZone } from '@shared/types';
 import { Minus, Square, X, LayoutGrid } from 'lucide-react';
 

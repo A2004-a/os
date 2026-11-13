@@ -14,8 +14,12 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 
 export function usePreferences() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => {
-    const cached = localStorage.getItem('novaos_preferences');
-    return cached ? JSON.parse(cached) : DEFAULT_PREFERENCES;
+    try {
+      const cached = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('novaos_preferences') : null;
+      return cached ? JSON.parse(cached) : DEFAULT_PREFERENCES;
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
   });
 
   useEffect(() => {
@@ -37,7 +41,13 @@ export function usePreferences() {
     root.setAttribute('data-reduced-motion', String(prefs.motionReduced));
     root.setAttribute('data-reduced-transparency', String(prefs.transparencyReduced));
 
-    localStorage.setItem('novaos_preferences', JSON.stringify(prefs));
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('novaos_preferences', JSON.stringify(prefs));
+      }
+    } catch {
+      // Ignore
+    }
 
     // Save to SQLite
     if (window.nova?.db?.setPreferences) {

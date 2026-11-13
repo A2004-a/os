@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPreferences, SystemMetrics, ThemeMode, AccentColor, LauncherMode } from '@shared/types';
-import { Sun, Moon, Eye, Zap, Sliders, Monitor, Volume2, VolumeX, ShieldAlert } from 'lucide-react';
+import { Sun, Moon, Eye, Zap, Sliders, Monitor, Volume2, VolumeX, Layers } from 'lucide-react';
 import { Badge } from '../common/Badge';
 
 interface QuickSettingsProps {
@@ -239,7 +239,7 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({
           </div>
         </div>
 
-        {/* Sound & Motion Toggles */}
+        {/* Sound & Motion & Transparency Toggles */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '4px' }}>
           <button
             onClick={() => setMuted(!muted)}
@@ -277,6 +277,26 @@ export const QuickSettings: React.FC<QuickSettingsProps> = ({
           >
             <Zap size={14} />
             {preferences.motionReduced ? 'Motion Off' : 'Motion On'}
+          </button>
+
+          <button
+            onClick={onToggleReducedTransparency}
+            style={{
+              gridColumn: 'span 2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px',
+              borderRadius: 'var(--nova-radius-md)',
+              backgroundColor: preferences.transparencyReduced ? 'rgba(6, 182, 212, 0.15)' : 'var(--nova-surface-raised)',
+              color: preferences.transparencyReduced ? '#06b6d4' : 'var(--nova-text-primary)',
+              fontSize: 'var(--nova-text-xs)',
+              cursor: 'pointer',
+            }}
+          >
+            <Layers size={14} />
+            {preferences.transparencyReduced ? 'Transparency Reduced' : 'Glass Effects On'}
           </button>
         </div>
       </div>
