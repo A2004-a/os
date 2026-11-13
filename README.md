@@ -1,98 +1,91 @@
-# NovaOS
+# NovaOS — Bare-Metal x86_64 Operating System Kernel
 
-> **One Desktop. Three Worlds. One Experience.**
+[![Architecture](https://img.shields.io/badge/arch-x86__64-blue.svg)](https://en.wikipedia.org/wiki/X86-64)
+[![Language](https://img.shields.io/badge/language-Rust%20(no__std)-orange.svg)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
-NovaOS is an original, production-quality hybrid desktop environment engineered to blend the productivity and multitasking of **Windows**, the fluid ergonomics, search, and visual polish of **macOS**, and the deep configurability, transparency, and terminal agency of **Linux**—without copying proprietary assets, branding, or pretending to be a low-level host operating system.
-
----
-
-## 🧭 Core Boundary & Product Identity
-
-NovaOS is a desktop environment **application** running inside Electron on Windows, macOS, and Linux. It provides a cohesive, simulated desktop experience within its own window frame while offering controlled, permissioned bridges to real host features.
-
-Capabilities are explicitly labeled throughout documentation and in the Settings application:
-- 🟢 **Native Integration:** Real host-supported actions (system notifications, native file dialogs, host OS metrics, external links in default browser, sandboxed shell terminal).
-- 🟡 **Managed Integration:** Operations brokered through audited internal native helpers with user permission prompts and path confinement.
-- 🔵 **Simulated Environment:** In-app window compositor, virtual workspaces, virtual filesystem (*Nova Home*), widgets, dock/panel layouts, notes, and local app store.
-- 🔴 **Unavailable / Host-Controlled:** Kernel operations, boot settings, global display servers, unrestricted raw filesystem access, or hardware driver installations.
+**NovaOS** is a genuine, freestanding bare-metal operating system kernel built from line zero in Rust. It boots on physical computer hardware or emulated hypervisors (QEMU, VirtualBox, VMware) with full control over Ring 0 CPU execution, memory paging, descriptor tables, hardware interrupts, and device drivers.
 
 ---
 
-## 🚀 Getting Started
+## Key Kernel Capabilities
 
-### Prerequisites
-- **Node.js**: v20.0+ (Tested on Node v26.5.0)
-- **Package Manager**: npm v10+ or compatible
-- **Operating System**: Windows 10/11, macOS 12+, or modern Linux (Ubuntu 22.04+, Fedora 38+)
+* **UEFI Bootloader Handover:** Boots directly into 64-bit Long Mode via typed bootloader protocol.
+* **Global Descriptor Table (GDT) & TSS:** Configures kernel segments with an emergency **Interrupt Stack Table (IST)** to guarantee recovery from stack overflows without triple faulting.
+* **Interrupt Descriptor Table (IDT):** Complete exception matrix (Divide Error, Breakpoint, General Protection Fault, Page Fault with CR2 diagnosis) and remapped 8259 PIC IRQ lines.
+* **4-Level Virtual Memory Paging:** Level 4 PML4 paging tables with physical-memory offset mapping and UEFI memory region allocator.
+* **Dynamic Kernel Heap:** 256 KiB heap mapped at `0x4444_4444_0000` supporting `alloc` collections (`Box`, `Vec`, `String`, `Arc`).
+* **Hardware Drivers:**
+  * **UART 16550 Serial (COM1):** Direct kernel diagnostics via `serial_println!`.
+  * **VGA Text Buffer (0xb8000):** Memory-mapped 80x25 color terminal with automated row scrolling via `println!`.
+  * **PS/2 Keyboard:** Hardware interrupt driver with asynchronous scancode decoder.
+* **Multitasking Engine:** Waker-driven async executor that puts the CPU into low-power sleep via `hlt` when idle.
 
-### Installation
-```bash
-# Clone the repository
-git clone https://github.com/amiyogarai/novaos.git
-cd "AMIYO OS"
+---
 
-# Install dependencies
-npm install
-```
+## Directory Structure
 
-### Development
-```bash
-# Run the Vite renderer in development mode
-npm run dev:renderer
-
-# Build main and renderer
-npm run build
-
-# Start the Electron application
-npm start
-```
-
-### Running Tests
-```bash
-# Run unit and integration tests with Vitest
-npm test
-
-# Run TypeScript typechecks
-npm run typecheck
-```
-
-### Packaging & Distribution
-```bash
-# Package directory build
-npm run package:dir
-
-# Package Windows installer
-npm run package:win
+```text
+├── .cargo/
+│   └── config.toml               # Cargo runner for QEMU, target spec, rustflags
+├── Cargo.toml                    # Kernel manifest and dependencies
+├── rust-toolchain.toml           # Pins nightly toolchain & bare-metal components
+├── x86_64-novaos.json            # Custom bare-metal target specification
+├── src/
+│   ├── main.rs                   # Kernel entry point (_start) & banner
+│   ├── lib.rs                    # Reusable kernel library & test runner
+│   ├── vga_buffer.rs             # VGA text driver (print!/println!)
+│   ├── serial.rs                 # UART 16550 serial driver (serial_print!)
+│   ├── gdt.rs                    # GDT & Task State Segment (TSS) with IST
+│   ├── interrupts.rs             # IDT, CPU exceptions, 8259 PIC, and timer
+│   ├── memory.rs                 # Physical frame allocator & 4-level paging
+│   ├── allocator.rs              # Dynamic heap allocator (Box, Vec, String)
+│   └── task/                     # Async multitasking subsystem
+│       ├── mod.rs                # Task and TaskId abstractions
+│       ├── executor.rs           # Waker-driven preemptive/idle executor
+│       ├── simple_executor.rs    # Basic FIFO test executor
+│       └── keyboard.rs           # Asynchronous interrupt-driven keyboard queue
+├── tests/
+│   ├── basic_boot.rs             # Automated QEMU boot test
+│   ├── should_panic.rs           # Panic recovery verification
+│   └── stack_overflow.rs         # Double fault IST stack overflow verification
+├── scripts/
+│   ├── install-toolchain.ps1     # Automated Windows toolchain setup
+│   ├── build.ps1                 # Build bootable raw disk image (.bin)
+│   └── run.ps1                   # Launch kernel inside QEMU emulator
+└── ARCHITECTURE.md               # Detailed systems and architecture manual
 ```
 
 ---
 
-## 🏛 Architecture Overview
+## Quickstart
 
-NovaOS follows strict Electron security principles:
-1. **Hardened Electron Main Process**: Context isolation enabled, Node integration disabled, Chromium sandbox enabled, restrictive CSP applied, and navigation restricted.
-2. **Narrow Typed Preload**: No arbitrary `ipcRenderer.invoke` or raw Node primitives exposed. All APIs are strictly typed and bounded.
-3. **Validated IPC Router**: Every request is validated against strict Zod runtime schemas before triggering native actions.
-4. **Capability Permission Broker**: Critical actions (terminal execution, host folder access, clipboard reads) require explicit user consent with audit logs.
-5. **SQLite Persistence**: Embedded transactional state management using Node's zero-dependency `node:sqlite`.
-6. **Nova Surface Design System**: Original typography, accessible contrast, fluid physics-based motion with reduced-motion support.
+### 1. Automated Toolchain Installation
+Run PowerShell as Administrator:
+```powershell
+.\scripts\install-toolchain.ps1
+```
+*This installs Rust Nightly, `rust-src`, `llvm-tools-preview`, `cargo-bootimage`, and QEMU for x86_64.*
+
+### 2. Build the Kernel & Bootable Disk Image
+```powershell
+.\scripts\build.ps1
+```
+*Produces `target\x86_64-novaos\debug\bootimage-novaos-kernel.bin`.*
+
+### 3. Launch NovaOS inside QEMU
+```powershell
+.\scripts\run.ps1
+```
+*Launches the virtual machine with 512 MB RAM, serial output mapped to stdio, and interactive keyboard input.*
+
+### 4. Run Automated Hardware Verification Tests
+```powershell
+cargo test
+```
 
 ---
 
-## 📂 Documentation
-
-- [Architecture Guide](ARCHITECTURE.md)
-- [Architecture Audit & Baseline](ARCHITECTURE_AUDIT.md)
-- [Security Model & Hardening](SECURITY.md)
-- [Platform Capability Matrix](CAPABILITY_MATRIX.md)
-- [App SDK & Manifest Specification](APP_SDK.md)
-- [Test Plan & Quality Gates](TEST_PLAN.md)
-- [Known Limitations](KNOWN_LIMITATIONS.md)
-- [Changelog](CHANGELOG.md)
-- [Release Checklist](RELEASE_CHECKLIST.md)
-
----
-
-## 📄 License
-Apache-2.0 License. Developed by NovaOS Platform Engineering.
-
+## Technical Documentation
+For in-depth explanations of 4-level paging, IDT exception vectors, TSS stacks, and async waker implementation, refer to:
+* **[ARCHITECTURE.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/ARCHITECTURE.md)**: Full kernel systems manual.

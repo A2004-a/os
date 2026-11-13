@@ -1,6 +1,21 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.iso
+*.bin
+*.img
+*.qcow2
+
+# Legacy artifacts
 node_modules/
 dist/
 release/
 .novaos-data/
 .novaos-test-data/
 *.log
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
