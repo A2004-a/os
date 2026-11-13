@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+
+QEMU=${QEMU:-qemu-system-x86_64}
+OVMF=${OVMF:-/usr/share/ovmf/OVMF.fd}
+
+echo "Launching NovaOS Zero in QEMU..."
+$QEMU -bios "$OVMF" -drive format=raw,file=fat:rw:build -serial stdio -m 512M -device isa-debug-exit,iobase=0xf4,iosize=0x04 "$@"

@@ -18,6 +18,8 @@ pub mod ipc;
 pub mod memory;
 pub mod process;
 pub mod scheduler;
+pub mod security;
+pub mod storage;
 pub mod syscall;
 
 use boot::info::BootInfo;
@@ -28,7 +30,7 @@ pub fn init(boot_info: &BootInfo) {
     // 1. Initialize serial port first for early diagnostics
     drivers::serial::init();
     serial_println!("========================================");
-    serial_println!("       NovaOS x86_64 Bare-Metal Kernel  ");
+    serial_println!("       NovaOS Zero x86_64 Microkernel   ");
     serial_println!("========================================");
 
     // 2. Load GDT and TSS with emergency IST stack
@@ -45,11 +47,11 @@ pub fn init(boot_info: &BootInfo) {
     serial_println!("[INIT] 8259 PIC unmasked; IRQ interrupts enabled");
 
     // 5. Initialize 4-level paging and physical frame allocator
-    let phys_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let phys_offset = VirtAddr::new(0xFFFF_8000_0000_0000);
     let mut mapper = unsafe { memory::paging::init_paging(phys_offset) };
     let mut frame_allocator = memory::frame::BootInfoFrameAllocator::new(
-        boot_info.memory_regions,
-        boot_info.memory_regions_count,
+        boot_info.memory_map.regions,
+        boot_info.memory_map.regions_count,
     );
     serial_println!("[INIT] Virtual memory 4-level paging initialized");
 
@@ -59,7 +61,7 @@ pub fn init(boot_info: &BootInfo) {
     serial_println!("[INIT] Kernel heap active at 0x4444_4444_0000");
 
     // 7. Initialize hardware drivers (VGA, Framebuffer, Keyboard)
-    drivers::init(Some(boot_info.framebuffer));
+    drivers::init(boot_info.framebuffer);
     serial_println!("[INIT] Drivers initialized (UART, VGA, Framebuffer, PS/2 Keyboard)");
 }
 

@@ -1,10 +1,12 @@
 [workspace]
 members = [
     "kernel",
-    "boot/uefi-loader",
+    "boot/uefi",
+    "userland/runtime",
     "userland/init",
     "userland/shell",
     "userland/coreutils",
+    "userland/apps",
 ]
 resolver = "2"
 

@@ -1,5 +1,5 @@
-//! NovaOS Boot Information ABI
-//! Structured data passed from UEFI Bootloader to Kernel Entry
+//! NovaOS Zero Boot Information Specification
+//! Shared ABI between UEFI Boot Manager and Kernel Entry
 
 pub const NOVAOS_BOOT_MAGIC: u64 = 0x4E4F56414F532131; // "NOVAOS!1"
 pub const MAX_MEMORY_REGIONS: usize = 128;
@@ -25,14 +25,30 @@ pub struct MemoryRegion {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
+pub struct MemoryMap {
+    pub regions_count: usize,
+    pub regions: [MemoryRegion; MAX_MEMORY_REGIONS],
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct BootVolumeInfo {
+    pub partition_type: u32, // 1 = FAT32 ESP
+    pub total_sectors: u64,
+    pub bytes_per_sector: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
 pub struct BootInfo {
     pub magic: u64,
-    pub version: u32,
-    pub framebuffer: FramebufferInfo,
-    pub memory_regions_count: usize,
-    pub memory_regions: [MemoryRegion; MAX_MEMORY_REGIONS],
-    pub rsdp_address: u64,
-    pub physical_memory_offset: u64,
+    pub memory_map: MemoryMap,
+    pub framebuffer: Option<FramebufferInfo>,
+    pub rsdp_address: Option<u64>,
+    pub boot_volume: BootVolumeInfo,
+    pub kernel_physical_base: u64,
+    pub kernel_virtual_base: u64,
+    pub command_line: Option<&'static str>,
 }
 
 impl BootInfo {

@@ -1,0 +1,14 @@
+[package]
+name = "novaos-runtime"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Systems Engineering <kernel@novaos.org>"]
+description = "NovaOS Userland Runtime Layer"
+
+[dependencies]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

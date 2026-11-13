@@ -1,9 +1,9 @@
 [package]
-name = "uefi-loader"
+name = "novaos-uefi-boot"
 version = "0.1.0"
 edition = "2021"
 authors = ["NovaOS Systems Engineering <kernel@novaos.org>"]
-description = "NovaOS 64-bit UEFI Bootloader"
+description = "NovaOS Zero 64-Bit UEFI Boot Manager"
 
 [dependencies]
 uefi = { version = "0.28", default-features = false, features = ["alloc"] }
