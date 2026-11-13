@@ -1,0 +1,12 @@
+[package]
+name = "novaos-init"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Systems Engineering <kernel@novaos.org>"]
+description = "NovaOS PID 1 Userland Init Process"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

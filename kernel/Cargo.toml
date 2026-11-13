@@ -1,0 +1,25 @@
+[package]
+name = "novaos-kernel"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Systems Engineering <kernel@novaos.org>"]
+description = "NovaOS x86_64 Bare-Metal Microkernel Core"
+
+[dependencies]
+volatile = "0.2.6"
+spin = "0.9.8"
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+x86_64 = "0.14.10"
+uart_16550 = "0.2.18"
+pic8259 = "0.10.2"
+pc-keyboard = "0.7.0"
+linked_list_allocator = "0.10.5"
+bitflags = "2.4.1"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = 3

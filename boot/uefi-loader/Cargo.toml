@@ -1,0 +1,18 @@
+[package]
+name = "uefi-loader"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Systems Engineering <kernel@novaos.org>"]
+description = "NovaOS 64-bit UEFI Bootloader"
+
+[dependencies]
+uefi = { version = "0.28", default-features = false, features = ["alloc"] }
+uefi-services = "0.25"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "z"

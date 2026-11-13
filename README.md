@@ -1,91 +1,103 @@
-# NovaOS — Bare-Metal x86_64 Operating System Kernel
+# NovaOS — Bare-Metal x86_64 Operating System
 
 [![Architecture](https://img.shields.io/badge/arch-x86__64-blue.svg)](https://en.wikipedia.org/wiki/X86-64)
 [![Language](https://img.shields.io/badge/language-Rust%20(no__std)-orange.svg)](https://www.rust-lang.org/)
+[![Firmware](https://img.shields.io/badge/firmware-UEFI%20(OVMF)-purple.svg)](https://uefi.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
-**NovaOS** is a genuine, freestanding bare-metal operating system kernel built from line zero in Rust. It boots on physical computer hardware or emulated hypervisors (QEMU, VirtualBox, VMware) with full control over Ring 0 CPU execution, memory paging, descriptor tables, hardware interrupts, and device drivers.
+**NovaOS** is an original, genuine bare-metal operating system built from an empty repository in freestanding Rust (`#![no_std]`, `#![no_main]`).
+
+It boots natively through 64-bit UEFI on physical hardware and QEMU virtual machines. It has zero dependency on Electron, Chromium, Linux, Windows, macOS, or any external hosted runtime.
 
 ---
 
-## Key Kernel Capabilities
-
-* **UEFI Bootloader Handover:** Boots directly into 64-bit Long Mode via typed bootloader protocol.
-* **Global Descriptor Table (GDT) & TSS:** Configures kernel segments with an emergency **Interrupt Stack Table (IST)** to guarantee recovery from stack overflows without triple faulting.
-* **Interrupt Descriptor Table (IDT):** Complete exception matrix (Divide Error, Breakpoint, General Protection Fault, Page Fault with CR2 diagnosis) and remapped 8259 PIC IRQ lines.
-* **4-Level Virtual Memory Paging:** Level 4 PML4 paging tables with physical-memory offset mapping and UEFI memory region allocator.
-* **Dynamic Kernel Heap:** 256 KiB heap mapped at `0x4444_4444_0000` supporting `alloc` collections (`Box`, `Vec`, `String`, `Arc`).
-* **Hardware Drivers:**
-  * **UART 16550 Serial (COM1):** Direct kernel diagnostics via `serial_println!`.
-  * **VGA Text Buffer (0xb8000):** Memory-mapped 80x25 color terminal with automated row scrolling via `println!`.
-  * **PS/2 Keyboard:** Hardware interrupt driver with asynchronous scancode decoder.
-* **Multitasking Engine:** Waker-driven async executor that puts the CPU into low-power sleep via `hlt` when idle.
-
----
-
-## Directory Structure
+## 1. Verified Architecture
 
 ```text
-├── .cargo/
-│   └── config.toml               # Cargo runner for QEMU, target spec, rustflags
-├── Cargo.toml                    # Kernel manifest and dependencies
-├── rust-toolchain.toml           # Pins nightly toolchain & bare-metal components
-├── x86_64-novaos.json            # Custom bare-metal target specification
-├── src/
-│   ├── main.rs                   # Kernel entry point (_start) & banner
-│   ├── lib.rs                    # Reusable kernel library & test runner
-│   ├── vga_buffer.rs             # VGA text driver (print!/println!)
-│   ├── serial.rs                 # UART 16550 serial driver (serial_print!)
-│   ├── gdt.rs                    # GDT & Task State Segment (TSS) with IST
-│   ├── interrupts.rs             # IDT, CPU exceptions, 8259 PIC, and timer
-│   ├── memory.rs                 # Physical frame allocator & 4-level paging
-│   ├── allocator.rs              # Dynamic heap allocator (Box, Vec, String)
-│   └── task/                     # Async multitasking subsystem
-│       ├── mod.rs                # Task and TaskId abstractions
-│       ├── executor.rs           # Waker-driven preemptive/idle executor
-│       ├── simple_executor.rs    # Basic FIFO test executor
-│       └── keyboard.rs           # Asynchronous interrupt-driven keyboard queue
-├── tests/
-│   ├── basic_boot.rs             # Automated QEMU boot test
-│   ├── should_panic.rs           # Panic recovery verification
-│   └── stack_overflow.rs         # Double fault IST stack overflow verification
-├── scripts/
-│   ├── install-toolchain.ps1     # Automated Windows toolchain setup
-│   ├── build.ps1                 # Build bootable raw disk image (.bin)
-│   └── run.ps1                   # Launch kernel inside QEMU emulator
-└── ARCHITECTURE.md               # Detailed systems and architecture manual
+novaos/
+├── Cargo.toml                    # Root workspace manifest
+├── rust-toolchain.toml           # Pins nightly toolchain & targets (none, uefi)
+├── Makefile                      # Standard developer build automation
+├── README.md                     # System overview & getting started guide
+├── LICENSE                       # Apache-2.0 open-source license
+├── docs/                         # Systems engineering specifications
+│   ├── ARCHITECTURE.md           # Subsystem topology and execution model
+│   ├── BOOT_PROCESS.md           # UEFI handover protocol and Long Mode entry
+│   ├── MEMORY_MODEL.md           # 4-level paging and kernel heap map
+│   ├── SYSCALL_ABI.md            # Calling conventions and system call table
+│   ├── DRIVER_MODEL.md           # Device driver specifications
+│   ├── SECURITY_MODEL.md         # Ring 0 / Ring 3 privilege separation
+│   ├── TEST_PLAN.md              # QEMU exit codes and automated tests
+│   ├── HARDWARE_SUPPORT.md       # Hardware and emulator compatibility matrix
+│   ├── ROADMAP.md                # 12-milestone engineering schedule
+│   └── KNOWN_LIMITATIONS.md      # Transparent boundaries and status report
+├── boot/
+│   ├── uefi-loader/              # 64-bit UEFI loader (BOOTX64.EFI)
+│   └── linker/                   # Bare-metal linker scripts (kernel.ld)
+├── kernel/                       # Core x86_64 microkernel
+│   ├── src/
+│   │   ├── arch/x86_64/          # CPU GDT, TSS, IDT, port I/O, control registers
+│   │   ├── boot/                 # BootInfo ABI contract
+│   │   ├── cpu/                  # CPUID discovery and feature detection
+│   │   ├── memory/               # 4-level paging, frame allocator, dynamic heap
+│   │   ├── interrupts/           # 8259 PIC remapping and PIT timer ticks
+│   │   ├── scheduler/            # Round-robin scheduler and task management
+│   │   ├── process/              # Process Control Blocks and address spaces
+│   │   ├── syscall/              # Fast syscall dispatcher
+│   │   ├── drivers/              # UART 16550, VGA, GOP framebuffer, PS/2, PCI
+│   │   ├── fs/                   # Virtual Filesystem & RamFS
+│   │   ├── ipc/                  # Ring-buffer message passing channels
+│   │   └── graphics/             # 2D drawing primitives & console font
+│   └── tests/                    # QEMU integration tests
+├── userland/
+│   ├── init/                     # PID 1 userspace entry stub
+│   ├── shell/                    # Interactive command shell
+│   └── coreutils/                # Fundamental system utilities
+└── tools/
+    ├── build-image.ps1           # Automated FAT32 EFI disk builder
+    ├── run-qemu.ps1              # QEMU launcher with OVMF firmware & serial stdio
+    └── debug-gdb.ps1             # GDB debugger configuration
 ```
 
 ---
 
-## Quickstart
+## 2. Developer Commands
 
-### 1. Automated Toolchain Installation
-Run PowerShell as Administrator:
+### On Windows (PowerShell):
 ```powershell
-.\scripts\install-toolchain.ps1
+# 1. Build UEFI Bootloader and Kernel Image
+.\tools\build-image.ps1
+
+# 2. Boot NovaOS in QEMU (OVMF UEFI + Serial stdio)
+.\tools\run-qemu.ps1
+
+# 3. Headless Verification Testing in QEMU
+.\tools\run-qemu.ps1 -NoGui
+
+# 4. Attach GDB Debugger
+.\tools\debug-gdb.ps1
 ```
-*This installs Rust Nightly, `rust-src`, `llvm-tools-preview`, `cargo-bootimage`, and QEMU for x86_64.*
 
-### 2. Build the Kernel & Bootable Disk Image
-```powershell
-.\scripts\build.ps1
-```
-*Produces `target\x86_64-novaos\debug\bootimage-novaos-kernel.bin`.*
-
-### 3. Launch NovaOS inside QEMU
-```powershell
-.\scripts\run.ps1
-```
-*Launches the virtual machine with 512 MB RAM, serial output mapped to stdio, and interactive keyboard input.*
-
-### 4. Run Automated Hardware Verification Tests
-```powershell
-cargo test
+### On Linux / macOS / WSL (Make):
+```bash
+make build       # Compile loader and kernel
+make image       # Generate bootable disk directory
+make run         # Launch QEMU with OVMF
+make debug       # Launch paused with GDB server on :1234
+make test-qemu   # Headless automated boot test
+make test        # Run host unit tests
 ```
 
 ---
 
-## Technical Documentation
-For in-depth explanations of 4-level paging, IDT exception vectors, TSS stacks, and async waker implementation, refer to:
-* **[ARCHITECTURE.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/ARCHITECTURE.md)**: Full kernel systems manual.
+## 3. Engineering Documentation
+* [ARCHITECTURE.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/ARCHITECTURE.md)
+* [BOOT_PROCESS.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/BOOT_PROCESS.md)
+* [MEMORY_MODEL.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/MEMORY_MODEL.md)
+* [SYSCALL_ABI.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/SYSCALL_ABI.md)
+* [DRIVER_MODEL.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/DRIVER_MODEL.md)
+* [SECURITY_MODEL.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/SECURITY_MODEL.md)
+* [TEST_PLAN.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/TEST_PLAN.md)
+* [HARDWARE_SUPPORT.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/HARDWARE_SUPPORT.md)
+* [ROADMAP.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/ROADMAP.md)
+* [KNOWN_LIMITATIONS.md](file:///c:/Users/amiyo%20garai/OneDrive/Documents/AMIYO%20OS/docs/KNOWN_LIMITATIONS.md)

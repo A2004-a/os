@@ -1,0 +1,36 @@
+name: NovaOS Kernel CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-and-test:
+    name: Build Kernel & Run QEMU Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src, llvm-tools-preview
+          targets: x86_64-unknown-none, x86_64-unknown-uefi
+
+      - name: Install QEMU & OVMF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf
+
+      - name: Build Kernel
+        run: cargo build --package novaos-kernel --target x86_64-unknown-none
+
+      - name: Build UEFI Bootloader
+        run: cargo build --package uefi-loader --target x86_64-unknown-uefi
+
+      - name: Run Unit Tests
+        run: cargo test --package novaos-kernel --lib
