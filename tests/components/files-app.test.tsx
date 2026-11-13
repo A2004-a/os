@@ -24,9 +24,11 @@ describe('FilesApp Component', () => {
   it('renders sidebar with Nova Home categories and host folder button', async () => {
     render(<FilesApp />);
 
-    expect(screen.getByText(/Nova Home/i)).toBeDefined();
-    expect(screen.getAllByText(/Documents/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/\+ Authorize Folder/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getAllByText(/Nova Home/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Documents/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/\+ Authorize Folder/i)).toBeDefined();
+    });
   });
 
   it('loads and displays files from directory list', async () => {

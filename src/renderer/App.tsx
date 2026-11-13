@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { usePreferences } from './state/preferenceStore';
 import { useWindowManager } from './state/windowStore';
 import { DesktopCanvas } from './components/shell/DesktopCanvas';
 import { WindowFrame } from './components/shell/WindowFrame';
 import { SnapPreview } from './components/shell/SnapPreview';
+import { SnapAssist } from './components/shell/SnapAssist';
 import { Launcher } from './components/shell/Launcher';
-import { CommandPalette } from './components/shell/CommandPalette';
+import { NovaLauncher } from './components/shell/NovaLauncher';
+import { CalendarPopover } from './components/shell/CalendarPopover';
 import { QuickSettings } from './components/shell/QuickSettings';
 import { NotificationCenter } from './components/shell/NotificationCenter';
 import { TaskSwitcher } from './components/shell/TaskSwitcher';
+import { ClipboardHistory, ClipboardItem } from './components/shell/ClipboardHistory';
 import { SnapZone, ShellNotification } from '@shared/types';
 
 // Built-in Applications
@@ -49,19 +52,41 @@ export const App: React.FC = () => {
   } = useWindowManager();
 
   const [snapPreviewZone, setSnapPreviewZone] = useState<SnapZone | null>(null);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [snapAssistRemainingZone, setSnapAssistRemainingZone] = useState<SnapZone | null>(null);
+
+  const [isLauncherOpen, setIsLauncherOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isQuickSettingsOpen, setIsQuickSettingsOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isTaskSwitcherOpen, setIsTaskSwitcherOpen] = useState(false);
+  const [isClipboardOpen, setIsClipboardOpen] = useState(false);
   const [switcherIndex, setSwitcherIndex] = useState(0);
+
+  const [focusModeActive, setFocusModeActive] = useState(false);
+  const [currentWallpaper, setCurrentWallpaper] = useState('cosmic');
+
+  const [clipboardItems, setClipboardItems] = useState<ClipboardItem[]>([
+    { id: 'clip-1', text: 'https://novaos.internal/docs/security', timestamp: Date.now() - 300000 },
+    { id: 'clip-2', text: 'npm run test:security', timestamp: Date.now() - 120000 },
+    { id: 'clip-3', text: 'One Desktop. Three Worlds. One Experience.', timestamp: Date.now() - 60000 },
+  ]);
 
   const [notifications, setNotifications] = useState<ShellNotification[]>([
     {
       id: 'notif-1',
       title: 'Welcome to NovaOS',
-      message: 'Hybrid desktop platform initialized with strict Electron isolation.',
+      message: 'Hybrid desktop platform initialized with strict Electron isolation and Nova Surface design language.',
       timestamp: Date.now() - 60000,
       sourceAppId: 'io.novaos.system',
+      read: false,
+      urgency: 'normal',
+    },
+    {
+      id: 'notif-2',
+      title: 'System Security Audit',
+      message: 'Zero-trust capability broker active. Host folder access confined to approved boundaries.',
+      timestamp: Date.now() - 30000,
+      sourceAppId: 'io.novaos.security',
       read: false,
       urgency: 'normal',
     },
@@ -72,34 +97,100 @@ export const App: React.FC = () => {
     height: window.innerHeight,
   };
 
+  const activeWindows = windows.filter((w) => w.workspaceId === activeWorkspaceId);
+
+  // Focus Group: Minimize background windows to focus on target
+  const handleFocusGroup = useCallback((targetWindowId: string) => {
+    windows.forEach((w) => {
+      if (w.id !== targetWindowId && w.workspaceId === activeWorkspaceId && w.state !== 'minimized') {
+        minimizeWindow(w.id);
+      }
+    });
+    focusWindow(targetWindowId);
+  }, [windows, activeWorkspaceId, minimizeWindow, focusWindow]);
+
+  // Show Desktop Peek
+  const handleShowDesktop = useCallback(() => {
+    const hasUnminimized = activeWindows.some((w) => w.state !== 'minimized');
+    if (hasUnminimized) {
+      activeWindows.forEach((w) => minimizeWindow(w.id));
+    } else {
+      activeWindows.forEach((w) => focusWindow(w.id));
+    }
+  }, [activeWindows, minimizeWindow, focusWindow]);
+
+  // Handle Window Snap with Snap Assist Trigger
+  const handleSnap = useCallback((windowId: string, zone: SnapZone) => {
+    snapWindow(windowId, zone, containerBounds);
+
+    // Determine complementary remaining zone for Snap Assist
+    let remaining: SnapZone | null = null;
+    if (zone === 'left-half') remaining = 'right-half';
+    else if (zone === 'right-half') remaining = 'left-half';
+    else if (zone === 'top-half') remaining = 'bottom-half';
+    else if (zone === 'bottom-half') remaining = 'top-half';
+    else if (zone === 'top-left') remaining = 'top-right';
+    else if (zone === 'top-right') remaining = 'bottom-right';
+    else if (zone === 'bottom-left') remaining = 'bottom-right';
+    else if (zone === 'bottom-right') remaining = 'bottom-left';
+
+    const candidates = activeWindows.filter((w) => w.id !== windowId && w.state !== 'minimized');
+    if (remaining && candidates.length > 0) {
+      setSnapAssistRemainingZone(remaining);
+    } else {
+      setSnapAssistRemainingZone(null);
+    }
+  }, [snapWindow, containerBounds, activeWindows]);
+
+  // Snap Assist Select
+  const handleSnapAssistSelect = useCallback((candidateId: string, zone: SnapZone) => {
+    snapWindow(candidateId, zone, containerBounds);
+    setSnapAssistRemainingZone(null);
+  }, [snapWindow, containerBounds]);
+
   // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Space or Cmd+Space: Command Palette
+      // Ctrl+Space or Win key: Toggle Nova Launcher & Search
       if ((e.ctrlKey || e.metaKey) && e.code === 'Space') {
         e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
+        setIsLauncherOpen((prev) => !prev);
       }
 
       // Alt+Tab: Task Switcher
       if (e.altKey && e.key === 'Tab') {
         e.preventDefault();
-        const activeWindows = windows.filter((w) => w.workspaceId === activeWorkspaceId);
         if (activeWindows.length > 0) {
           setIsTaskSwitcherOpen(true);
           setSwitcherIndex((prev) => (prev + 1) % activeWindows.length);
         }
       }
 
-      // Snapping Shortcuts: Alt+Left, Alt+Right, Alt+Up
-      const focusedWin = windows.find((w) => w.focused && w.workspaceId === activeWorkspaceId);
+      // Win+V or Alt+V: Clipboard History
+      if ((e.metaKey || e.altKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        setIsClipboardOpen((prev) => !prev);
+      }
+
+      // Escape: Dismiss active popovers
+      if (e.key === 'Escape') {
+        setIsLauncherOpen(false);
+        setIsCalendarOpen(false);
+        setIsQuickSettingsOpen(false);
+        setIsNotificationsOpen(false);
+        setIsClipboardOpen(false);
+        setSnapAssistRemainingZone(null);
+      }
+
+      // Snapping Shortcuts: Alt+Left, Alt+Right, Alt+Up, Alt+Down
+      const focusedWin = activeWindows.find((w) => w.focused);
       if (focusedWin && e.altKey) {
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          snapWindow(focusedWin.id, 'left-half', containerBounds);
+          handleSnap(focusedWin.id, 'left-half');
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
-          snapWindow(focusedWin.id, 'right-half', containerBounds);
+          handleSnap(focusedWin.id, 'right-half');
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
           maximizeWindow(focusedWin.id, containerBounds);
@@ -113,7 +204,6 @@ export const App: React.FC = () => {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Alt' && isTaskSwitcherOpen) {
         setIsTaskSwitcherOpen(false);
-        const activeWindows = windows.filter((w) => w.workspaceId === activeWorkspaceId);
         const target = activeWindows[switcherIndex];
         if (target) {
           focusWindow(target.id);
@@ -127,7 +217,7 @@ export const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [windows, activeWorkspaceId, isTaskSwitcherOpen, switcherIndex, snapWindow, maximizeWindow, minimizeWindow, focusWindow, containerBounds]);
+  }, [activeWindows, isTaskSwitcherOpen, switcherIndex, handleSnap, maximizeWindow, minimizeWindow, focusWindow, containerBounds]);
 
   const renderAppContent = (appId: string) => {
     switch (appId) {
@@ -169,8 +259,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const activeWindows = windows.filter((w) => w.workspaceId === activeWorkspaceId);
-
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* Desktop Canvas */}
@@ -181,6 +269,8 @@ export const App: React.FC = () => {
         onOpenApp={openApp}
         onOpenNote={() => openApp('io.novaos.notes', 'Notes')}
         onOpenTerminal={() => openApp('io.novaos.terminal', 'Terminal')}
+        wallpaperId={currentWallpaper}
+        onSelectWallpaper={setCurrentWallpaper}
       >
         {/* Render Open Windows */}
         {activeWindows.map((win) => (
@@ -192,10 +282,11 @@ export const App: React.FC = () => {
             onClose={() => closeWindow(win.id)}
             onMinimize={() => minimizeWindow(win.id)}
             onMaximize={() => maximizeWindow(win.id, containerBounds)}
-            onSnap={(zone) => snapWindow(win.id, zone, containerBounds)}
+            onSnap={(zone) => handleSnap(win.id, zone)}
             onMove={(x, y) => moveWindow(win.id, x, y)}
             onResize={(b) => resizeWindow(win.id, b)}
             onSnapPreview={setSnapPreviewZone}
+            onFocusGroup={() => handleFocusGroup(win.id)}
           >
             {renderAppContent(win.appId)}
           </WindowFrame>
@@ -203,28 +294,53 @@ export const App: React.FC = () => {
 
         {/* Snap Ghost Preview Indicator */}
         <SnapPreview snapZone={snapPreviewZone} containerBounds={containerBounds} />
+
+        {/* Snap Assist Floating Picker */}
+        {snapAssistRemainingZone && (
+          <SnapAssist
+            remainingZone={snapAssistRemainingZone}
+            candidateWindows={activeWindows.filter((w) => w.state !== 'snapped' || w.snapZone !== snapAssistRemainingZone)}
+            containerBounds={containerBounds}
+            onSelectWindow={handleSnapAssistSelect}
+            onDismiss={() => setSnapAssistRemainingZone(null)}
+          />
+        )}
       </DesktopCanvas>
 
-      {/* Launcher (Dock / Taskbar / Panel) */}
+      {/* Nova Bar (Centered / Left Taskbar or Dock / Panel) */}
       <Launcher
         mode={preferences.launcherMode}
         windows={activeWindows}
         onOpenApp={openApp}
         onFocusWindow={focusWindow}
-        onToggleCommandPalette={() => setIsCommandPaletteOpen((p) => !p)}
+        onCloseWindow={closeWindow}
+        onToggleCommandPalette={() => setIsLauncherOpen((p) => !p)}
         onToggleQuickSettings={() => setIsQuickSettingsOpen((p) => !p)}
         onToggleNotifications={() => setIsNotificationsOpen((p) => !p)}
+        onToggleCalendar={() => setIsCalendarOpen((p) => !p)}
+        onShowDesktop={handleShowDesktop}
         activeWorkspaceId={activeWorkspaceId}
         unreadNotificationsCount={notifications.filter((n) => !n.read).length}
+        taskbarAlignment="center"
+        privacyIndicatorActive={false}
       />
 
-      {/* Global Command Palette */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
+      {/* Windows 11-Grade Nova Launcher & Universal Search */}
+      <NovaLauncher
+        isOpen={isLauncherOpen}
+        onClose={() => setIsLauncherOpen(false)}
         onOpenApp={openApp}
         onSwitchWorkspace={switchWorkspace}
         onToggleTheme={() => setTheme(preferences.theme === 'dark' ? 'light' : 'dark')}
+        onOpenNote={() => openApp('io.novaos.notes', 'Notes')}
+        onOpenTerminal={() => openApp('io.novaos.terminal', 'Terminal')}
+      />
+
+      {/* Interactive Calendar Popover */}
+      <CalendarPopover
+        isOpen={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+        onOpenApp={openApp}
       />
 
       {/* Quick Settings Drawer */}
@@ -237,6 +353,8 @@ export const App: React.FC = () => {
         onSetLauncherMode={setLauncherMode}
         onToggleReducedMotion={toggleReducedMotion}
         onToggleReducedTransparency={toggleReducedTransparency}
+        focusMode={focusModeActive}
+        onToggleFocusMode={() => setFocusModeActive((prev) => !prev)}
       />
 
       {/* Notification Center */}
@@ -246,6 +364,17 @@ export const App: React.FC = () => {
         notifications={notifications}
         onDismiss={(id) => setNotifications((prev) => prev.filter((n) => n.id !== id))}
         onClearAll={() => setNotifications([])}
+      />
+
+      {/* In-App Clipboard History (Win+V) */}
+      <ClipboardHistory
+        isOpen={isClipboardOpen}
+        onClose={() => setIsClipboardOpen(false)}
+        items={clipboardItems}
+        onSelectItem={(_text) => {
+          setIsClipboardOpen(false);
+        }}
+        onClearAll={() => setClipboardItems([])}
       />
 
       {/* Task Switcher (Alt+Tab) */}
@@ -263,4 +392,3 @@ export const App: React.FC = () => {
     </div>
   );
 };
-

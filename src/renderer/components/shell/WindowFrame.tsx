@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ShellWindow, Bounds, SnapZone } from '@shared/types';
-import { Minus, Square, X, LayoutGrid } from 'lucide-react';
+import { Minus, Square, X, Target } from 'lucide-react';
 
 interface WindowFrameProps {
   window: ShellWindow;
@@ -13,6 +13,7 @@ interface WindowFrameProps {
   onMove: (x: number, y: number) => void;
   onResize: (bounds: Bounds) => void;
   onSnapPreview: (zone: SnapZone | null) => void;
+  onFocusGroup?: () => void;
   children: React.ReactNode;
 }
 
@@ -27,9 +28,12 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
   onMove,
   onResize,
   onSnapPreview,
+  onFocusGroup,
   children,
 }) => {
-  const [showSnapMenu, setShowSnapMenu] = useState(false);
+  const [showSnapFlyout, setShowSnapFlyout] = useState(false);
+  const snapTimeoutRef = useRef<any>(null);
+
   const dragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
   const resizeRef = useRef<{
     direction: string;
@@ -159,6 +163,28 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
     window.addEventListener('mouseup', handleMouseUp);
   };
 
+  const handleMaximizeMouseEnter = () => {
+    if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current);
+    snapTimeoutRef.current = setTimeout(() => {
+      setShowSnapFlyout(true);
+    }, 280);
+  };
+
+  const handleMaximizeMouseLeave = () => {
+    if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current);
+    snapTimeoutRef.current = setTimeout(() => {
+      setShowSnapFlyout(false);
+    }, 400);
+  };
+
+  const handleFlyoutMouseEnter = () => {
+    if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current);
+  };
+
+  const handleFlyoutMouseLeave = () => {
+    setShowSnapFlyout(false);
+  };
+
   const isMax = win.state === 'maximized';
 
   return (
@@ -220,12 +246,12 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
           style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* Snap Selector Menu */}
-          <div style={{ position: 'relative' }}>
+          {/* Focus Group Action */}
+          {onFocusGroup && (
             <button
-              onClick={() => setShowSnapMenu(!showSnapMenu)}
-              title="Snap Window"
-              aria-label="Snap Window"
+              onClick={onFocusGroup}
+              title="Focus Group (Minimize background windows)"
+              aria-label="Focus Group"
               style={{
                 width: '28px',
                 height: '24px',
@@ -236,68 +262,14 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
                 color: 'var(--nova-text-secondary)',
                 cursor: 'pointer',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--nova-accent-primary)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--nova-text-secondary)')}
             >
-              <LayoutGrid size={13} />
+              <Target size={13} />
             </button>
+          )}
 
-            {showSnapMenu && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '4px',
-                  backgroundColor: 'var(--nova-surface-raised)',
-                  border: '1px solid var(--nova-border-strong)',
-                  borderRadius: 'var(--nova-radius-md)',
-                  padding: '8px',
-                  boxShadow: 'var(--nova-shadow-lg)',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '4px',
-                  zIndex: 10,
-                }}
-              >
-                <button
-                  onClick={() => { onSnap('left-half'); setShowSnapMenu(false); }}
-                  style={{ padding: '6px', fontSize: '11px', backgroundColor: 'var(--nova-surface-base)', borderRadius: '4px', color: 'var(--nova-text-secondary)' }}
-                >
-                  Left 1/2
-                </button>
-                <button
-                  onClick={() => { onSnap('center-third'); setShowSnapMenu(false); }}
-                  style={{ padding: '6px', fontSize: '11px', backgroundColor: 'var(--nova-surface-base)', borderRadius: '4px', color: 'var(--nova-text-secondary)' }}
-                >
-                  Center 1/3
-                </button>
-                <button
-                  onClick={() => { onSnap('right-half'); setShowSnapMenu(false); }}
-                  style={{ padding: '6px', fontSize: '11px', backgroundColor: 'var(--nova-surface-base)', borderRadius: '4px', color: 'var(--nova-text-secondary)' }}
-                >
-                  Right 1/2
-                </button>
-                <button
-                  onClick={() => { onSnap('top-left'); setShowSnapMenu(false); }}
-                  style={{ padding: '6px', fontSize: '11px', backgroundColor: 'var(--nova-surface-base)', borderRadius: '4px', color: 'var(--nova-text-secondary)' }}
-                >
-                  Top-Left
-                </button>
-                <button
-                  onClick={() => { onSnap('top-half'); setShowSnapMenu(false); }}
-                  style={{ padding: '6px', fontSize: '11px', backgroundColor: 'var(--nova-surface-base)', borderRadius: '4px', color: 'var(--nova-text-secondary)' }}
-                >
-                  Top 1/2
-                </button>
-                <button
-                  onClick={() => { onSnap('top-right'); setShowSnapMenu(false); }}
-                  style={{ padding: '6px', fontSize: '11px', backgroundColor: 'var(--nova-surface-base)', borderRadius: '4px', color: 'var(--nova-text-secondary)' }}
-                >
-                  Top-Right
-                </button>
-              </div>
-            )}
-          </div>
-
+          {/* Minimize Button */}
           <button
             onClick={onMinimize}
             title="Minimize"
@@ -315,23 +287,194 @@ export const WindowFrame: React.FC<WindowFrameProps> = ({
           >
             <Minus size={13} />
           </button>
-          <button
-            onClick={onMaximize}
-            title={isMax ? 'Restore' : 'Maximize'}
-            aria-label={isMax ? 'Restore Window' : 'Maximize Window'}
-            style={{
-              width: '28px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 'var(--nova-radius-sm)',
-              color: 'var(--nova-text-secondary)',
-              cursor: 'pointer',
-            }}
+
+          {/* Maximize / Snap Layouts Anchor Button */}
+          <div
+            style={{ position: 'relative' }}
+            onMouseEnter={handleMaximizeMouseEnter}
+            onMouseLeave={handleMaximizeMouseLeave}
           >
-            <Square size={12} />
-          </button>
+            <button
+              onClick={onMaximize}
+              title={isMax ? 'Restore' : 'Maximize (Hover for Snap Layouts)'}
+              aria-label={isMax ? 'Restore Window' : 'Maximize Window'}
+              style={{
+                width: '28px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--nova-radius-sm)',
+                color: showSnapFlyout ? 'var(--nova-accent-primary)' : 'var(--nova-text-secondary)',
+                backgroundColor: showSnapFlyout ? 'var(--nova-surface-base)' : 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              <Square size={12} />
+            </button>
+
+            {/* Windows 11-Grade Snap Layouts Flyout */}
+            {showSnapFlyout && (
+              <div
+                onMouseEnter={handleFlyoutMouseEnter}
+                onMouseLeave={handleFlyoutMouseLeave}
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: -10,
+                  marginTop: '6px',
+                  backgroundColor: 'var(--nova-surface-glass)',
+                  backdropFilter: 'var(--nova-blur-glass)',
+                  border: '1px solid var(--nova-border-strong)',
+                  borderRadius: 'var(--nova-radius-lg)',
+                  padding: '10px',
+                  boxShadow: 'var(--nova-shadow-lg)',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 110px)',
+                  gap: '8px',
+                  zIndex: 2000,
+                  animation: 'fadeIn var(--nova-duration-fast) var(--nova-ease-standard)',
+                }}
+              >
+                {/* 1. Halves: 50 / 50 */}
+                <div
+                  style={{
+                    height: '64px',
+                    borderRadius: 'var(--nova-radius-sm)',
+                    border: '1px solid var(--nova-border-subtle)',
+                    padding: '3px',
+                    display: 'flex',
+                    gap: '3px',
+                    backgroundColor: 'var(--nova-surface-base)',
+                  }}
+                >
+                  <div
+                    onClick={() => { onSnap('left-half'); setShowSnapFlyout(false); }}
+                    title="Snap to Left Half"
+                    style={{ flex: 1, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('right-half'); setShowSnapFlyout(false); }}
+                    title="Snap to Right Half"
+                    style={{ flex: 1, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                </div>
+
+                {/* 2. Asymmetric Halves: 67 / 33 */}
+                <div
+                  style={{
+                    height: '64px',
+                    borderRadius: 'var(--nova-radius-sm)',
+                    border: '1px solid var(--nova-border-subtle)',
+                    padding: '3px',
+                    display: 'flex',
+                    gap: '3px',
+                    backgroundColor: 'var(--nova-surface-base)',
+                  }}
+                >
+                  <div
+                    onClick={() => { onSnap('left-half'); setShowSnapFlyout(false); }}
+                    title="Snap Left Major (67%)"
+                    style={{ flex: 2, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('right-half'); setShowSnapFlyout(false); }}
+                    title="Snap Right Minor (33%)"
+                    style={{ flex: 1, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                </div>
+
+                {/* 3. Three Columns: 33 / 33 / 33 */}
+                <div
+                  style={{
+                    height: '64px',
+                    borderRadius: 'var(--nova-radius-sm)',
+                    border: '1px solid var(--nova-border-subtle)',
+                    padding: '3px',
+                    display: 'flex',
+                    gap: '3px',
+                    backgroundColor: 'var(--nova-surface-base)',
+                  }}
+                >
+                  <div
+                    onClick={() => { onSnap('left-half'); setShowSnapFlyout(false); }}
+                    title="Snap Left Column"
+                    style={{ flex: 1, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('center-third'); setShowSnapFlyout(false); }}
+                    title="Snap Center Column"
+                    style={{ flex: 1, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('right-half'); setShowSnapFlyout(false); }}
+                    title="Snap Right Column"
+                    style={{ flex: 1, borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                </div>
+
+                {/* 4. Four Quadrants: 2 x 2 */}
+                <div
+                  style={{
+                    height: '64px',
+                    borderRadius: 'var(--nova-radius-sm)',
+                    border: '1px solid var(--nova-border-subtle)',
+                    padding: '3px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gridTemplateRows: '1fr 1fr',
+                    gap: '3px',
+                    backgroundColor: 'var(--nova-surface-base)',
+                  }}
+                >
+                  <div
+                    onClick={() => { onSnap('top-left'); setShowSnapFlyout(false); }}
+                    title="Snap Top-Left"
+                    style={{ borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('top-right'); setShowSnapFlyout(false); }}
+                    title="Snap Top-Right"
+                    style={{ borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('bottom-left'); setShowSnapFlyout(false); }}
+                    title="Snap Bottom-Left"
+                    style={{ borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                  <div
+                    onClick={() => { onSnap('bottom-right'); setShowSnapFlyout(false); }}
+                    title="Snap Bottom-Right"
+                    style={{ borderRadius: '2px', backgroundColor: 'var(--nova-surface-raised)', cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-accent-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--nova-surface-raised)')}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Close Button */}
           <button
             onClick={onClose}
             title="Close"

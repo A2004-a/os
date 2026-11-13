@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Clock as ClockIcon, Timer, Hourglass, Play, Pause, RotateCcw } from 'lucide-react';
+import { Clock as ClockIcon, Timer, Hourglass, Play, Pause, RotateCcw, Target, CheckCircle2 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 
 export const ClockApp: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'world' | 'stopwatch' | 'timer'>('world');
+  const [activeTab, setActiveTab] = useState<'world' | 'stopwatch' | 'timer' | 'focus'>('world');
   const [time, setTime] = useState(new Date());
 
   // Stopwatch state
@@ -14,6 +14,11 @@ export const ClockApp: React.FC = () => {
   // Timer state
   const [timerSeconds, setTimerSeconds] = useState(300); // 5 mins
   const [timerRunning, setTimerRunning] = useState(false);
+
+  // Focus Session state
+  const [focusSeconds, setFocusSeconds] = useState(1500); // 25 mins Pomodoro
+  const [focusRunning, setFocusRunning] = useState(false);
+  const [completedSessions, setCompletedSessions] = useState(2);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -41,6 +46,20 @@ export const ClockApp: React.FC = () => {
     return () => clearInterval(interval);
   }, [timerRunning, timerSeconds]);
 
+  useEffect(() => {
+    let interval: any;
+    if (focusRunning && focusSeconds > 0) {
+      interval = setInterval(() => setFocusSeconds((prev) => prev - 1), 1000);
+    } else if (focusRunning && focusSeconds === 0) {
+      setFocusRunning(false);
+      setCompletedSessions((prev) => prev + 1);
+      if (window.nova?.system?.showNotification) {
+        window.nova.system.showNotification('Focus Session Complete!', 'Well done! Time for a 5-minute break.', 'normal');
+      }
+    }
+    return () => clearInterval(interval);
+  }, [focusRunning, focusSeconds]);
+
   const formatStopwatch = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
     const seconds = Math.floor((ms % 60000) / 1000);
@@ -60,6 +79,7 @@ export const ClockApp: React.FC = () => {
       <div style={{ display: 'flex', borderBottom: '1px solid var(--nova-border-subtle)', backgroundColor: 'var(--nova-surface-base)', padding: '0 16px' }}>
         {[
           { id: 'world', label: 'World Clock', icon: <ClockIcon size={14} /> },
+          { id: 'focus', label: 'Focus Sessions', icon: <Target size={14} /> },
           { id: 'stopwatch', label: 'Stopwatch', icon: <Timer size={14} /> },
           { id: 'timer', label: 'Timer', icon: <Hourglass size={14} /> },
         ].map((tab) => (
@@ -114,6 +134,39 @@ export const ClockApp: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'focus' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', maxWidth: '420px', textAlign: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: 'var(--nova-text-lg)', fontWeight: 700, color: 'var(--nova-text-primary)' }}>
+                Focus Session (Pomodoro)
+              </h3>
+              <p style={{ fontSize: 'var(--nova-text-xs)', color: 'var(--nova-text-muted)', marginTop: '4px' }}>
+                Achieve deep work with distraction-free intervals. Notifications silenced.
+              </p>
+            </div>
+
+            <div style={{ fontSize: '64px', fontWeight: 700, fontFamily: 'var(--nova-font-mono)', color: 'var(--nova-accent-primary)' }}>
+              {formatTimer(focusSeconds)}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button size="lg" variant={focusRunning ? 'danger' : 'primary'} onClick={() => setFocusRunning(!focusRunning)}>
+                {focusRunning ? <Pause size={18} /> : <Play size={18} />} {focusRunning ? 'Pause Focus' : 'Start Focus Session'}
+              </Button>
+              <Button size="lg" variant="secondary" onClick={() => { setFocusRunning(false); setFocusSeconds(1500); }}>
+                <RotateCcw size={18} /> Reset (25m)
+              </Button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: 'var(--nova-radius-md)', backgroundColor: 'var(--nova-surface-base)', border: '1px solid var(--nova-border-subtle)' }}>
+              <CheckCircle2 size={16} color="#10b981" />
+              <span style={{ fontSize: '12px', color: 'var(--nova-text-secondary)' }}>
+                Today's Completed Sessions: <strong>{completedSessions}</strong> (50 mins focused)
+              </span>
             </div>
           </div>
         )}
