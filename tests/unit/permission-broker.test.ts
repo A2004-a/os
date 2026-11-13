@@ -78,3 +78,4 @@ describe('PermissionBroker', () => {
     expect(broker.hasPermission('io.novaos.temp', 'clipboard:read')).toBe(false);
   });
 });
+

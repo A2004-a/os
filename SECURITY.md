@@ -103,3 +103,4 @@ All permission prompts require explicit user action (no automatic approvals). Ev
 ## 7. Vulnerability Disclosure
 
 If you discover a security vulnerability within NovaOS, please submit a detailed report to `security@novaos.internal` or open a confidential security advisory. Do not disclose vulnerabilities publicly until patched.
+

@@ -5,7 +5,7 @@
 
 import * as os from 'node:os';
 import { Notification, shell } from 'electron';
-import { SystemMetrics } from '@shared/types';
+import { SystemMetrics } from '../../shared/types';
 
 export class SystemBroker {
   private lastCpuMeasure: { idle: number; total: number } | null = null;
@@ -61,3 +61,4 @@ export class SystemBroker {
     return shell.openExternal(safeUrl);
   }
 }
+

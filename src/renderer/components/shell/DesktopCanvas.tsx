@@ -274,3 +274,4 @@ export const DesktopCanvas: React.FC<DesktopCanvasProps> = ({
     </div>
   );
 };
+

@@ -64,3 +64,4 @@ describe('Window Manager & Snapping Geometry', () => {
     });
   });
 });
+

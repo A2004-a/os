@@ -12,7 +12,7 @@ import {
   PermissionGrant,
   AuditLogEntry,
   Capability,
-} from '@shared/types';
+} from '../shared/types';
 
 export interface IPCResult<T> {
   success: boolean;
@@ -128,3 +128,4 @@ const novaApi = {
 export type NovaBridge = typeof novaApi;
 
 contextBridge.exposeInMainWorld('nova', novaApi);
+

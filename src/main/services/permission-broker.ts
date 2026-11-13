@@ -3,12 +3,12 @@
  * Manages fine-grained capability checks, user consents, and audit trails
  */
 
-import { DatabaseSync } from 'node:sqlite';
-import { Capability, PermissionGrant, AuditLogEntry } from '@shared/types';
+import type { ISqliteDatabase } from '../db/database';
+import { Capability, PermissionGrant, AuditLogEntry } from '../../shared/types';
 import * as crypto from 'node:crypto';
 
 export class PermissionBroker {
-  constructor(private db: DatabaseSync) {}
+  constructor(private db: ISqliteDatabase) {}
 
   public hasPermission(appId: string, capability: Capability, resourcePath?: string): boolean {
     // Built-in system apps have core permissions for metrics and notifications
@@ -73,7 +73,7 @@ export class PermissionBroker {
       details: `Revoked grant ${grantId}`,
     });
 
-    return result.changes > 0;
+    return Boolean(result.changes && result.changes > 0);
   }
 
   public getGrants(appId?: string): PermissionGrant[] {
@@ -151,3 +151,4 @@ export class PermissionBroker {
     }));
   }
 }
+

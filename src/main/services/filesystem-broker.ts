@@ -3,17 +3,17 @@
  * Enforces path confinement, manages virtual Nova Home, and gates host folder operations
  */
 
-import { DatabaseSync } from 'node:sqlite';
+import type { ISqliteDatabase } from '../db/database';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as crypto from 'node:crypto';
 import { dialog, BrowserWindow } from 'electron';
-import { FileItem } from '@shared/types';
+import { FileItem } from '../../shared/types';
 import { PermissionBroker } from './permission-broker';
 
 export class FilesystemBroker {
   constructor(
-    private db: DatabaseSync,
+    private db: ISqliteDatabase,
     private permissionBroker: PermissionBroker
   ) {}
 
@@ -268,3 +268,4 @@ export class FilesystemBroker {
     return canonicalPath;
   }
 }
+

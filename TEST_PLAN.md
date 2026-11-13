@@ -65,3 +65,4 @@ tests/
    - Browse *Nova Home* virtual folders.
    - Attempt to read a host path outside granted folders; verify permission dialog blocks access.
 6. **Terminal Execution**: Open Terminal app, run `dir` or `ls`, verify structured execution and output streaming.
+

@@ -28,3 +28,4 @@ To maintain integrity and transparency with users and developers, the following 
 
 1. **Virtual Filesystem (*Nova Home*)**: Files saved to `nova://documents` or other virtual paths are persisted locally within an isolated application data directory managed by NovaOS. They are not visible to external host applications unless explicitly exported.
 2. **Software Center**: Applications in the Nova Software Center are curated web/JavaScript components conforming to the `AppManifest` specification. NovaOS does not install native `.exe`, `.msi`, `.dmg`, `.pkg`, or `.deb` system packages.
+

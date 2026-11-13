@@ -101,3 +101,4 @@ When a built-in app requests a file read:
 6. The Filesystem Broker canonicalizes the path, verifies that no directory traversal (`../`) escapes the root, reads the file safely, and returns the contents.
 7. The IPC Router serializes the sanitized response back to the Preload bridge.
 8. The App receives the data and renders the view.
+

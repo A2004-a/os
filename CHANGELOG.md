@@ -30,3 +30,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *Software Center*: In-app manifest-based application catalog.
   - *Developer Console*: Diagnostics, IPC inspector, and permission audit viewer.
 - **Comprehensive Documentation**: Complete architecture, security, capability, SDK, test plan, and release documentation suite.
+

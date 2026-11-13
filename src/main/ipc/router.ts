@@ -20,7 +20,7 @@ import {
   SaveWindowStateSchema,
   RequestPermissionSchema,
   RevokePermissionSchema,
-} from '@shared/schemas';
+} from '../../shared/schemas';
 import { PermissionBroker } from '../services/permission-broker';
 import { FilesystemBroker } from '../services/filesystem-broker';
 import { TerminalBroker } from '../services/terminal-broker';
@@ -345,3 +345,4 @@ export class SecureIpcRouter {
     });
   }
 }
+

@@ -86,3 +86,4 @@ describe('Security: Path Traversal Defenses', () => {
     expect(denialLog?.appId).toBe('io.novaos.malicious');
   });
 });
+

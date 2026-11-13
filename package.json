@@ -6,7 +6,8 @@
   "scripts": {
     "dev:renderer": "vite",
     "build:renderer": "vite build",
-    "build:main": "tsc -p tsconfig.node.json",
+    "build:main": "tsc -p tsconfig.node.json && npm run copy:wasm",
+    "copy:wasm": "node -e \"const fs = require('fs'); fs.copyFileSync(require.resolve('sql.js/dist/sql-wasm.wasm'), 'dist/main/sql-wasm.wasm')\"",
     "build": "npm run build:renderer && npm run build:main",
     "start": "electron dist/main/main.js",
     "test": "vitest run",
@@ -24,9 +25,11 @@
   "author": "NovaOS Platform Engineering",
   "license": "Apache-2.0",
   "dependencies": {
+    "@types/sql.js": "^1.4.11",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sql.js": "^1.16.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

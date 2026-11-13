@@ -57,3 +57,4 @@ describe('Security: Permission Elevation Defenses', () => {
     expect(broker.hasPermission('com.example.app', 'clipboard:read')).toBe(false);
   });
 });
+

@@ -145,3 +145,4 @@ export interface ShellNotification {
   read: boolean;
   urgency: 'low' | 'normal' | 'critical';
 }
+

@@ -1,17 +1,100 @@
 /**
  * NovaOS SQLite Database & Migration Engine
- * Powered by Node.js built-in `node:sqlite` (zero-dependency native execution)
+ * Dual-engine architecture:
+ * 1. Native `node:sqlite` (Node.js >= 22.5) when available
+ * 2. High-performance WebAssembly SQLite via `sql.js` (for Electron / Node.js 20)
  */
 
-import { DatabaseSync } from 'node:sqlite';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { app } from 'electron';
 
-export class NovaDatabase {
-  private db: DatabaseSync;
+export interface ISqliteStatement {
+  run(...params: any[]): { changes?: number | bigint };
+  get(...params: any[]): any;
+  all(...params: any[]): any[];
+}
 
-  constructor(customPath?: string) {
+export interface ISqliteDatabase {
+  exec(sql: string): void;
+  prepare(sql: string): ISqliteStatement;
+  close(): void;
+}
+
+class SqlJsDatabaseWrapper implements ISqliteDatabase {
+  constructor(private sqlDb: any, private filePath?: string) {}
+
+  private persist(): void {
+    if (this.filePath && !this.filePath.startsWith(':memory:')) {
+      try {
+        const data = this.sqlDb.export();
+        const buffer = Buffer.from(data);
+        fs.writeFileSync(this.filePath, buffer);
+      } catch (err) {
+        console.error('[NovaDatabase] Failed to persist sql.js database to disk:', err);
+      }
+    }
+  }
+
+  exec(sql: string): void {
+    this.sqlDb.exec(sql);
+    this.persist();
+  }
+
+  prepare(sql: string): ISqliteStatement {
+    return {
+      run: (...params: any[]) => {
+        const stmt = this.sqlDb.prepare(sql);
+        if (params.length > 0) {
+          stmt.bind(params);
+        }
+        stmt.step();
+        stmt.free();
+        const changes = this.sqlDb.getRowsModified();
+        this.persist();
+        return { changes };
+      },
+      get: (...params: any[]) => {
+        const stmt = this.sqlDb.prepare(sql);
+        if (params.length > 0) {
+          stmt.bind(params);
+        }
+        let row: any = undefined;
+        if (stmt.step()) {
+          row = stmt.getAsObject();
+        }
+        stmt.free();
+        return row;
+      },
+      all: (...params: any[]) => {
+        const stmt = this.sqlDb.prepare(sql);
+        if (params.length > 0) {
+          stmt.bind(params);
+        }
+        const rows: any[] = [];
+        while (stmt.step()) {
+          rows.push(stmt.getAsObject());
+        }
+        stmt.free();
+        return rows;
+      },
+    };
+  }
+
+  close(): void {
+    this.persist();
+    this.sqlDb.close();
+  }
+}
+
+export class NovaDatabase {
+  private db: ISqliteDatabase;
+
+  public constructor(db: ISqliteDatabase) {
+    this.db = db;
+  }
+
+  public static async create(customPath?: string): Promise<NovaDatabase> {
     let dbPath = customPath;
     if (!dbPath) {
       const userDataDir = app ? app.getPath('userData') : path.join(process.cwd(), '.novaos-data');
@@ -21,15 +104,66 @@ export class NovaDatabase {
       dbPath = path.join(userDataDir, 'novaos.sqlite');
     }
 
-    this.db = new DatabaseSync(dbPath);
-    this.initPragmas();
-    this.runMigrations();
+    let rawDb: ISqliteDatabase;
+
+    // Check if node:sqlite is natively available
+    let nativeSqliteModule: any = null;
+    try {
+      const moduleName = 'node:sqlite';
+      nativeSqliteModule = module.require(moduleName);
+    } catch {
+      nativeSqliteModule = null;
+    }
+
+    if (nativeSqliteModule && nativeSqliteModule.DatabaseSync) {
+      rawDb = new nativeSqliteModule.DatabaseSync(dbPath) as ISqliteDatabase;
+    } else {
+      // Fallback to WebAssembly sql.js
+      const initSqlJs = require('sql.js');
+
+      let wasmPath = path.join(__dirname, 'sql-wasm.wasm');
+      if (!fs.existsSync(wasmPath)) {
+        try {
+          wasmPath = require.resolve('sql.js/dist/sql-wasm.wasm');
+        } catch {
+          wasmPath = path.join(process.cwd(), 'node_modules/sql.js/dist/sql-wasm.wasm');
+        }
+      }
+
+      let wasmBinary: Buffer | undefined;
+      if (fs.existsSync(wasmPath)) {
+        wasmBinary = fs.readFileSync(wasmPath);
+      }
+
+      const SQL = await initSqlJs(wasmBinary ? { wasmBinary } : undefined);
+
+      let initialBuffer: Buffer | null = null;
+      if (dbPath && !dbPath.startsWith(':memory:') && fs.existsSync(dbPath)) {
+        try {
+          initialBuffer = fs.readFileSync(dbPath);
+        } catch {
+          initialBuffer = null;
+        }
+      }
+
+      const sqlDb = initialBuffer ? new SQL.Database(initialBuffer) : new SQL.Database();
+      rawDb = new SqlJsDatabaseWrapper(sqlDb, dbPath);
+    }
+
+    const instance = new NovaDatabase(rawDb);
+    instance.initPragmas();
+    instance.runMigrations();
+    return instance;
   }
 
   private initPragmas(): void {
-    this.db.exec('PRAGMA journal_mode = WAL;');
-    this.db.exec('PRAGMA foreign_keys = ON;');
-    this.db.exec('PRAGMA synchronous = NORMAL;');
+    try {
+      this.db.exec('PRAGMA foreign_keys = ON;');
+      this.db.exec('PRAGMA journal_mode = WAL;');
+      this.db.exec('PRAGMA synchronous = NORMAL;');
+    } catch (e) {
+      // Some pragmas might be no-ops in memory/wasm engines
+    }
   }
 
   private runMigrations(): void {
@@ -104,8 +238,8 @@ export class NovaDatabase {
 
     // Seed default Nova Home folder hierarchy if virtual_files is empty
     const countStmt = this.db.prepare('SELECT COUNT(*) as count FROM virtual_files');
-    const result = countStmt.get() as { count: number };
-    if (result.count === 0) {
+    const result = countStmt.get() as { count: number } | undefined;
+    if (!result || Number(result.count) === 0) {
       this.seedNovaHome();
     }
   }
@@ -148,7 +282,7 @@ Explore your new hybrid desktop!`;
     );
   }
 
-  public getRawDb(): DatabaseSync {
+  public getRawDb(): ISqliteDatabase {
     return this.db;
   }
 

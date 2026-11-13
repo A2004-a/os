@@ -132,3 +132,4 @@ export const PreferencesSchema = z.object({
 export const SaveWindowStateSchema = z.object({
   windows: z.array(ShellWindowSchema),
 });
+

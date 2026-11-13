@@ -121,3 +121,4 @@ A rigorous inspection of the workspace root (`c:\Users\amiyo garai\OneDrive\Docu
 - [ ] Packaging configuration (`electron-builder` configuration for Windows installer / portable, Linux AppImage/deb, macOS).
 - [ ] Complete documentation suite (`README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `CAPABILITY_MATRIX.md`, `APP_SDK.md`, `TEST_PLAN.md`, `CHANGELOG.md`, `KNOWN_LIMITATIONS.md`, `RELEASE_CHECKLIST.md`).
 - [ ] Release verification and quality sign-off.
+

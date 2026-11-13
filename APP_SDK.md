@@ -99,3 +99,4 @@ async function loadFiles() {
 1. **No Node Primitives**: Calling `require()`, `process.exit()`, or accessing `Buffer` is strictly impossible in renderer code.
 2. **Path Confinement**: All file paths must be prefixed with `nova://` or reside within a user-approved host folder path.
 3. **No Direct DOM Injection**: Apps cannot inject scripts into other app windows or the shell UI.
+

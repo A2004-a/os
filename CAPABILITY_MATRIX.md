@@ -36,3 +36,4 @@ This document provides a transparent, granular classification of capabilities su
 | **Global OS Window Hooking**| ❌ Not Supported | ❌ Not Supported | ❌ Not Supported | 🔴 Unavailable | NovaOS manages its own windows, not host OS windows. |
 | **Kernel / Driver Control** | ❌ Not Supported | ❌ Not Supported | ❌ Not Supported | 🔴 Unavailable | Strictly out of scope; user-space application only. |
 | **Raw Disk / BIOS Access**  | ❌ Not Supported | ❌ Not Supported | ❌ Not Supported | 🔴 Unavailable | Blocked by platform boundaries and security model. |
+

@@ -95,3 +95,4 @@ NovaOS follows strict Electron security principles:
 
 ## 📄 License
 Apache-2.0 License. Developed by NovaOS Platform Engineering.
+
