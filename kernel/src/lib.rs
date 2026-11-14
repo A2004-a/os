@@ -9,6 +9,7 @@ pub mod arch;
 pub mod boot;
 pub mod drivers;
 pub mod fs;
+pub mod graphics;
 pub mod ipc;
 pub mod memory;
 pub mod network;

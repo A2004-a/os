@@ -2,6 +2,50 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.7.0] - 2026-11-14 — Milestone 7 (Graphics, Window Server, and NovaUI)
+
+### Added
+- **32-Bit ARGB Color Model & Alpha Blending (`kernel/src/graphics/color.rs`):**
+  - Full ARGB channel manipulation with `a()`, `r()`, `g()`, `b()` components.
+  - Windows 11-inspired NovaOS Dark/Mica palette: `NOVA_MIDNIGHT`, `NOVA_SURFACE`, `NOVA_CARD`, `NOVA_BORDER`, `NOVA_ACCENT`, `TEXT_PRIMARY`, `TEXT_SECONDARY`.
+  - Porter-Duff Source-Over alpha blending (`Color::blend`) with integer division math.
+  - Global opacity modulation (`blend_with_opacity`).
+- **2D Geometry & Damage Tracking (`kernel/src/graphics/geometry.rs` & `damage.rs`):**
+  - Integer geometry primitives: `Point`, `Size`, and `Rect`.
+  - Exact intersection, bounding union, coordinate containment, and boundary clamping.
+  - `DamageRegion` dirty-rectangle tracking engine with overlap merging and bounding box collapse.
+- **2D Surface & Rasterizer (`kernel/src/graphics/surface.rs` & `font.rs`):**
+  - `Surface` pixel buffer with memory bounds checks and clipping.
+  - Primitive drawing operations: `fill_rect`, `fill_rect_alpha`, `draw_rect_outline`, `draw_rounded_rect`, `draw_line` (Bresenham's algorithm).
+  - Alpha blitting (`blit`, `blit_alpha`) and direct hardware framebuffer flushing (`blit_clipped_to_raw`).
+  - Monospace 8x16 bitmap font rasterizer with `measure_text`, `draw_char`, and `draw_text`.
+- **Hardware-Calibrated Mouse Cursor Overlay (`kernel/src/graphics/cursor.rs`):**
+  - 16x16 high-contrast arrow sprite with black border outline and white interior.
+  - Non-destructive backdrop saving and restoring to eliminate visual tearing and artifact trails.
+- **Desktop Window Manager & Hierarchy (`kernel/src/graphics/window.rs` & `compositor.rs`):**
+  - Window structure with `id`, `title`, client `surface`, outer frame geometry, and Z-order.
+  - Window frame decorations: title bar, title text, close button, borders, and active/inactive focus themes.
+  - Window hierarchy management: ascending Z-order sorting, bring-to-front focus, hit testing (`window_at`).
+  - Input event routing: mouse movement, mouse down/up click dispatching, and keyboard forwarding.
+  - Procedural desktop wallpaper with subtle geometric mesh grid and central glowing NovaOS Apex badge.
+  - True double-buffered composition flushing strictly to damaged regions on UEFI GOP framebuffer hardware.
+- **Dynamic Physical RAM Kernel Heap (`kernel/src/memory/heap.rs`):**
+  - Upgraded kernel heap to dynamically claim 16 MiB (4096 contiguous 4 KiB frames) from physical RAM on boot.
+  - Compact kernel ELF BSS footprint ensuring 100% reliable UEFI loader `AllocatePages` compatibility.
+  - LIFO offset rewinding on deallocation for automatic memory recycling.
+- **Window Management System Calls (29..34) (`kernel/src/syscall/mod.rs` & `userland/runtime/`):**
+  - `SYS_CREATE_WINDOW (29)`: create and map a new desktop window.
+  - `SYS_DESTROY_WINDOW (30)`: close and unmap a desktop window.
+  - `SYS_BLIT_WINDOW (31)`: blit pixel buffer into window client surface and mark damaged.
+  - `SYS_POLL_EVENT (32)`: poll input events (mouse, keyboard, window focus/close).
+  - `SYS_GET_DISPLAY_INFO (33)`: query screen dimensions, stride, and color depth.
+  - `SYS_SET_CURSOR (34)`: reposition mouse cursor and trigger overlay composite.
+- **NovaUI Toolkit (`userland/toolkit/src/lib.rs`):**
+  - Pure `#![no_std]` graphical toolkit for Ring 3 applications.
+  - Modern Dark/Mica theme and color palette.
+  - `Widget` trait with `bounds`, `set_bounds`, `render`, and `handle_event`.
+  - Core widgets: `Button` (with Normal, Hover, Pressed, and Disabled states), `ProgressBar` (smooth fill), and `Panel` (card container).
+
 ## [0.6.0] - 2026-11-14 — Milestone 6 (Networking and Multi-User Security)
 
 ### Added

@@ -43,6 +43,12 @@ pub const SYS_ACCEPT: usize = 25;
 pub const SYS_CONNECT: usize = 26;
 pub const SYS_SEND: usize = 27;
 pub const SYS_RECV: usize = 28;
+pub const SYS_CREATE_WINDOW: usize = 29;
+pub const SYS_DESTROY_WINDOW: usize = 30;
+pub const SYS_BLIT_WINDOW: usize = 31;
+pub const SYS_POLL_EVENT: usize = 32;
+pub const SYS_GET_DISPLAY_INFO: usize = 33;
+pub const SYS_SET_CURSOR: usize = 34;
 
 #[no_mangle]
 pub fn handle_syscall(ctx: &mut ExceptionContext) {
@@ -50,7 +56,7 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
     let arg1 = ctx.rdi;
     let arg2 = ctx.rsi;
     let arg3 = ctx.rdx;
-    let _arg4 = ctx.r10;
+    let arg4 = ctx.r10;
     let _arg5 = ctx.r8;
     let _arg6 = ctx.r9;
 
@@ -691,6 +697,120 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                     Ok(rcv) => rcv as i64,
                     Err(e) => e as i64,
                 }
+            }
+        }
+
+        SYS_CREATE_WINDOW => {
+            let title_ptr = arg1;
+            let width = arg2 as u32;
+            let height = arg3 as u32;
+            let flags = arg4 as u32;
+
+            match validate_user_string(title_ptr, 64) {
+                Ok(title) => {
+                    let pid = crate::scheduler::get_current_pid();
+                    let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                    if let Some(comp) = comp_guard.as_mut() {
+                        let win_id = comp.create_window(title, 100, 100, width, height, flags, pid);
+                        comp.composite();
+                        win_id.0 as i64
+                    } else {
+                        -5 // EIO
+                    }
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_DESTROY_WINDOW => {
+            let win_id = crate::graphics::window::WindowId(arg1 as u32);
+            let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+            if let Some(comp) = comp_guard.as_mut() {
+                comp.destroy_window(win_id);
+                comp.composite();
+                0
+            } else {
+                -5
+            }
+        }
+
+        SYS_BLIT_WINDOW => {
+            let win_id = crate::graphics::window::WindowId(arg1 as u32);
+            let buf_ptr = arg2;
+            let buf_len = arg3 as usize;
+
+            if let Err(e) = validate_user_buffer(buf_ptr, buf_len, false) {
+                -(e as i32 as i64)
+            } else {
+                let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                if let Some(comp) = comp_guard.as_mut() {
+                    if let Some(win) = comp.get_window_mut(win_id) {
+                        let user_pixels = unsafe { core::slice::from_raw_parts(buf_ptr as *const u32, buf_len / 4) };
+                        let copy_count = user_pixels.len().min(win.surface.pixels.len());
+                        win.surface.pixels[..copy_count].copy_from_slice(&user_pixels[..copy_count]);
+                        comp.damage_window(win_id);
+                        comp.composite();
+                        0
+                    } else {
+                        -2 // ENOENT
+                    }
+                } else {
+                    -5
+                }
+            }
+        }
+
+        SYS_POLL_EVENT => {
+            let win_id = crate::graphics::window::WindowId(arg1 as u32);
+            let event_buf_ptr = arg2;
+
+            if let Err(e) = validate_user_buffer(event_buf_ptr, core::mem::size_of::<crate::graphics::events::UserEvent>(), true) {
+                -(e as i32 as i64)
+            } else {
+                let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                if let Some(comp) = comp_guard.as_mut() {
+                    if let Some(win) = comp.get_window_mut(win_id) {
+                        if let Some(ev) = win.pop_event() {
+                            let user_ev: crate::graphics::events::UserEvent = ev.into();
+                            unsafe { *(event_buf_ptr as *mut crate::graphics::events::UserEvent) = user_ev; }
+                            1 // 1 event returned
+                        } else {
+                            0 // No event
+                        }
+                    } else {
+                        -2 // ENOENT
+                    }
+                } else {
+                    -5
+                }
+            }
+        }
+
+        SYS_GET_DISPLAY_INFO => {
+            let buf_ptr = arg1;
+            if let Err(e) = validate_user_buffer(buf_ptr, 16, true) {
+                -(e as i32 as i64)
+            } else {
+                let fb = crate::drivers::framebuffer::get_driver();
+                let out = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u32, 4) };
+                out[0] = fb.width;
+                out[1] = fb.height;
+                out[2] = fb.stride;
+                out[3] = 32; // 32 bits per pixel
+                0
+            }
+        }
+
+        SYS_SET_CURSOR => {
+            let x = arg1 as i32;
+            let y = arg2 as i32;
+            let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+            if let Some(comp) = comp_guard.as_mut() {
+                comp.on_mouse_move(x, y);
+                comp.composite();
+                0
+            } else {
+                -5
             }
         }
 

@@ -10,6 +10,7 @@ use novaos_apex_kernel::arch::x86_64::instructions::{hlt, sti};
 use novaos_apex_kernel::boot::BootInfo;
 use novaos_apex_kernel::drivers;
 use novaos_apex_kernel::fs;
+use novaos_apex_kernel::graphics;
 use novaos_apex_kernel::ipc;
 use novaos_apex_kernel::memory;
 use novaos_apex_kernel::network;
@@ -145,11 +146,21 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 6 WARN] Network verification encountered anomalies.\n");
     }
 
-    // 11. Initialize Scheduler & IPC Subsystems
+    // 11. Initialize Milestone 7 Graphics & Window Server Subsystem
+    serial::write_str("\n[KERNEL] Initializing Milestone 7 Graphics & Window Server Subsystem...\n");
+    graphics::init();
+    let m7_graphics_passed = graphics::tests::run_all();
+    if m7_graphics_passed {
+        serial::write_str("\n[MILESTONE 7 VERIFIED] 2D Software Compositor, Window Server, and NovaUI confirmed!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 7 WARN] Graphics verification encountered anomalies.\n");
+    }
+
+    // 12. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 
-    // 12. Run Milestone 4 Verification Test Suite & Spawn PID 1
+    // 13. Run Milestone 4 Verification Test Suite & Spawn PID 1
     static INIT_ELF: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/novaos-apex-init");
     syscall::tests::run_m4_verification_suite(INIT_ELF);
 

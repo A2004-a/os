@@ -6,7 +6,7 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ---
 
-## Current Status: Milestone 6 (Networking & Multi-User Security)
+## Current Status: Milestone 7 (Graphics, Window Server & NovaUI)
 
 ### 1. CPU, Scheduling & Synchronization
 - **Multicore (SMP):** Single-core execution only (Bootstrap Processor / BSP). Multi-core scheduling across APs is scheduled for Milestone 11.
@@ -20,7 +20,7 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ### 3. System Calls & IPC
 - **Native System Call Engine:** IDT Vector 128 (0x80, DPL=3) operational with strict user pointer and buffer boundary validation enforcing limits below `0x0000_8000_0000_0000`.
-- **28 Supported System Calls:** `exit`, `read`, `write`, `open`, `close`, `spawn`, `wait`, `yield`, `sleep`, `get_time`, `map_memory`, `unmap_memory`, `send_ipc`, `receive_ipc`, `stat`, `readdir`, `mkdir`, `unlink`, `chdir`, `getcwd`, `seek`, `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`.
+- **34 Supported System Calls:** `exit`, `read`, `write`, `open`, `close`, `spawn`, `wait`, `yield`, `sleep`, `get_time`, `map_memory`, `unmap_memory`, `send_ipc`, `receive_ipc`, `stat`, `readdir`, `mkdir`, `unlink`, `chdir`, `getcwd`, `seek`, `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `create_window`, `destroy_window`, `blit_window`, `poll_event`, `get_display_info`, `set_cursor`.
 - **Inter-Process Communication:** Mailbox queues with 256-byte payload limits, message sequencing, and caller isolation.
 
 ### 4. Storage & Filesystem Architecture
@@ -43,6 +43,11 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 - **Multi-User Port Security:** Privileged ports (< 1024) are strictly restricted to root (`UID 0`); regular users (`UID >= 1000`) cannot bind privileged ports (returns `-EACCES`).
 - **Network Utilities:** Userland shell commands `ifconfig`, `ping`, and `netstat` implemented.
 
-### 6. Graphics & Desktop GUI Status
-- Hardware text console (8x16 font) rendering on GOP linear framebuffer at 1280x800.
-- High-level 2D software compositor, alpha blending, window hierarchy, dirty rect tracking, and NovaUI widgets are scheduled for **Milestone 7**.
+### 6. Graphics, Window Server & NovaUI Subsystem
+- **2D Software Compositor:** True double-buffered backbuffer engine rendering at 1280x800 with direct blits to UEFI GOP framebuffer hardware.
+- **Alpha Blending:** 32-bit ARGB channel manipulation with Porter-Duff Source-Over alpha blending and per-window global opacity modulation.
+- **Window Hierarchy & Management:** Ascending Z-order list, active window focus tracking, bring-to-front reordering, hit testing, and window decoration frames (title bar, text, close button, borders).
+- **Damage Tracking:** Dirty rectangle accumulation (`DamageRegion`) to limit repaint and blit passes strictly to modified screen regions.
+- **Mouse Cursor Overlay:** Hardware-calibrated 16x16 arrow sprite with non-destructive backdrop save and restore.
+- **NovaUI Toolkit (`userland/toolkit`):** Clean `#![no_std]` graphical toolkit featuring `Point`, `Size`, `Rect`, modern Dark/Mica theme palette, `Widget` trait, and core widgets (`Button`, `Label`, `Panel`, `ProgressBar`, `CheckBox`, `TextBox`).
+- **Desktop Shell Integration:** Comprehensive shell desktop features (Nova Bar taskbar, Nova Launcher, Snap Assist engine, Virtual Workspaces 1..4) are scheduled for **Milestone 8**.

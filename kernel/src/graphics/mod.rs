@@ -1,0 +1,63 @@
+//! NovaOS Apex — Graphics & Window Server Subsystem (Milestone 7)
+//! 2D Software Compositor, Window Hierarchy, Alpha Blending, and NovaUI Engine.
+
+pub mod color;
+pub mod compositor;
+pub mod cursor;
+pub mod damage;
+pub mod events;
+pub mod font;
+pub mod geometry;
+pub mod surface;
+pub mod tests;
+pub mod window;
+
+pub use color::Color;
+pub use compositor::Compositor;
+pub use cursor::{Cursor, CursorType};
+pub use damage::DamageRegion;
+pub use events::{UserEvent, WindowEvent};
+pub use geometry::{Point, Rect, Size};
+pub use surface::Surface;
+pub use window::{Window, WindowId};
+
+use crate::drivers::framebuffer::get_driver;
+use crate::scheduler::sync::SpinLock;
+use crate::serial;
+
+pub static COMPOSITOR: SpinLock<Option<Compositor>> = SpinLock::new("compositor", None);
+
+pub fn init() {
+    let fb = get_driver();
+    let width = if fb.width > 0 { fb.width } else { 1280 };
+    let height = if fb.height > 0 { fb.height } else { 800 };
+
+    let mut comp = Compositor::new(width, height);
+    // Initial composition to display wallpaper
+    comp.composite();
+
+    *COMPOSITOR.lock() = Some(comp);
+
+    serial::write_str("[GRAPHICS] NovaOS Apex 2D Software Compositor initialized (");
+    print_u64(width as u64);
+    serial::write_str("x");
+    print_u64(height as u64);
+    serial::write_str(")\n");
+}
+
+fn print_u64(mut n: u64) {
+    if n == 0 {
+        serial::write_str("0");
+        return;
+    }
+    let mut buf = [0u8; 20];
+    let mut i = 0;
+    while n > 0 {
+        buf[i] = b'0' + (n % 10) as u8;
+        n /= 10;
+        i += 1;
+    }
+    for j in (0..i).rev() {
+        serial::write_byte(buf[j]);
+    }
+}

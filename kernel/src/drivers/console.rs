@@ -300,6 +300,16 @@ pub fn write_str(s: &str) {
     con.write_str(s);
 }
 
+pub fn get_glyph_data(c: u8) -> &'static [u8] {
+    let ascii = if c >= 32 && c <= 126 {
+        (c - 32) as usize
+    } else {
+        (b'?' - 32) as usize
+    };
+    let offset = ascii * 16;
+    &FONT_8X16[offset..offset + 16]
+}
+
 fn print_u64(mut n: u64) {
     if n == 0 {
         serial::write_str("0");

@@ -33,6 +33,36 @@ pub const SYS_ACCEPT: usize = 25;
 pub const SYS_CONNECT: usize = 26;
 pub const SYS_SEND: usize = 27;
 pub const SYS_RECV: usize = 28;
+pub const SYS_CREATE_WINDOW: usize = 29;
+pub const SYS_DESTROY_WINDOW: usize = 30;
+pub const SYS_BLIT_WINDOW: usize = 31;
+pub const SYS_POLL_EVENT: usize = 32;
+pub const SYS_GET_DISPLAY_INFO: usize = 33;
+pub const SYS_SET_CURSOR: usize = 34;
+
+pub const WINDOW_FLAG_FRAMELESS: u32 = 1 << 0;
+pub const WINDOW_FLAG_TRANSPARENT: u32 = 1 << 1;
+pub const WINDOW_FLAG_MODAL: u32 = 1 << 2;
+pub const WINDOW_FLAG_RESIZABLE: u32 = 1 << 3;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UserEvent {
+    pub event_type: u32,
+    pub arg1: i32,
+    pub arg2: i32,
+    pub arg3: u32,
+    pub arg4: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DisplayInfo {
+    pub width: u32,
+    pub height: u32,
+    pub stride: u32,
+    pub bpp: u32,
+}
 
 pub const AF_INET: u32 = 2;
 pub const SOCK_STREAM: u32 = 1;
@@ -160,6 +190,23 @@ unsafe fn syscall3(num: usize, arg1: u64, arg2: u64, arg3: u64) -> i64 {
         in("rdi") arg1,
         in("rsi") arg2,
         in("rdx") arg3,
+        out("rcx") _,
+        out("r11") _,
+        options(nostack, preserves_flags)
+    );
+    ret
+}
+
+#[inline(always)]
+unsafe fn syscall4(num: usize, arg1: u64, arg2: u64, arg3: u64, arg4: u64) -> i64 {
+    let ret: i64;
+    asm!(
+        "int 0x80",
+        inout("rax") num as u64 => ret,
+        in("rdi") arg1,
+        in("rsi") arg2,
+        in("rdx") arg3,
+        in("r10") arg4,
         out("rcx") _,
         out("r11") _,
         options(nostack, preserves_flags)
@@ -546,6 +593,110 @@ pub fn recv(handle: u32, buf: &mut [u8]) -> Result<usize, i32> {
     };
     if ret >= 0 {
         Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 30. create_window
+pub fn create_window(title: &str, width: u32, height: u32, flags: u32) -> Result<u32, i32> {
+    let mut buf = [0u8; 64];
+    let len = title.len().min(63);
+    buf[..len].copy_from_slice(&title.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall4(
+            SYS_CREATE_WINDOW,
+            buf.as_ptr() as u64,
+            width as u64,
+            height as u64,
+            flags as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(ret as u32)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 31. destroy_window
+pub fn destroy_window(window_id: u32) -> Result<(), i32> {
+    let ret = unsafe { syscall1(SYS_DESTROY_WINDOW, window_id as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 32. blit_window
+pub fn blit_window(window_id: u32, pixels: &[u32]) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall3(
+            SYS_BLIT_WINDOW,
+            window_id as u64,
+            pixels.as_ptr() as u64,
+            (pixels.len() * 4) as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 33. poll_event
+pub fn poll_event(window_id: u32) -> Option<UserEvent> {
+    let mut ev = UserEvent {
+        event_type: 0,
+        arg1: 0,
+        arg2: 0,
+        arg3: 0,
+        arg4: 0,
+    };
+    let ret = unsafe {
+        syscall2(
+            SYS_POLL_EVENT,
+            window_id as u64,
+            &mut ev as *mut UserEvent as u64,
+        )
+    };
+    if ret == 1 {
+        Some(ev)
+    } else {
+        None
+    }
+}
+
+// 34. get_display_info
+pub fn get_display_info() -> Result<DisplayInfo, i32> {
+    let mut info = DisplayInfo {
+        width: 0,
+        height: 0,
+        stride: 0,
+        bpp: 0,
+    };
+    let ret = unsafe {
+        syscall1(
+            SYS_GET_DISPLAY_INFO,
+            &mut info as *mut DisplayInfo as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(info)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 35. set_cursor
+pub fn set_cursor(x: i32, y: i32) -> Result<(), i32> {
+    let ret = unsafe { syscall2(SYS_SET_CURSOR, x as u64, y as u64) };
+    if ret >= 0 {
+        Ok(())
     } else {
         Err(ret as i32)
     }
