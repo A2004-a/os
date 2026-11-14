@@ -43,6 +43,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // Run Milestone M4 Multitasking Scheduler, Syscall, and ELF Loader verification suite
     novaos_kernel::scheduler::scheduler_test::run_m4_tests();
 
+    // Run Milestone M5 Virtual Filesystem, NovaFS, and Storage verification suite
+    novaos_kernel::fs::fs_test::run_fs_diagnostics();
+
     println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");
 

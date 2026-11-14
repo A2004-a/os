@@ -31,6 +31,9 @@ version = "0.1.0"
 [[package]]
 name = "novaos-shell"
 version = "0.1.0"
+dependencies = [
+ "novaos-runtime",
+]
 
 [[package]]
 name = "novaos-uefi-boot"

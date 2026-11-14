@@ -35,12 +35,18 @@ if ($Release) { $kernelArgs += "--release" }
 & cargo $kernelArgs
 
 # 3. Compile Userland Init
-Write-Host "[3/4] Building NovaOS Userland Init (novaos-init)..." -ForegroundColor Yellow
+Write-Host "[3/5] Building NovaOS Userland Init (novaos-init)..." -ForegroundColor Yellow
 $initArgs = @("build", "--package", "novaos-init", "--target", "x86_64-unknown-none")
 if ($Release) { $initArgs += "--release" }
 & cargo $initArgs
 
-# 4. Create Output Boot Directory
+# 4. Compile Userland Shell
+Write-Host "[4/5] Building NovaOS Userland Shell (novaos-shell)..." -ForegroundColor Yellow
+$shellArgs = @("build", "--package", "novaos-shell", "--target", "x86_64-unknown-none")
+if ($Release) { $shellArgs += "--release" }
+& cargo $shellArgs
+
+# 5. Create Output Boot Directory
 $buildDir = "build"
 if (-not (Test-Path $buildDir)) {
     New-Item -ItemType Directory -Path $buildDir | Out-Null
@@ -61,7 +67,7 @@ $loaderDst = Join-Path $efiDir "BOOTX64.EFI"
 foreach ($src in $loaderCandidates) {
     if (Test-Path $src) {
         Copy-Item $src $loaderDst -Force
-        Write-Host "[4/4] Created EFI payload: $loaderDst" -ForegroundColor Green
+        Write-Host "[5/5] Created EFI payload: $loaderDst" -ForegroundColor Green
         break
     }
 }
@@ -71,7 +77,7 @@ $kernelSrc = "target\x86_64-unknown-none\$targetMode\novaos-kernel"
 $kernelDst = Join-Path $buildDir "novaos.elf"
 if (Test-Path $kernelSrc) {
     Copy-Item $kernelSrc $kernelDst -Force
-    Write-Host "[4/4] Created kernel payload: $kernelDst" -ForegroundColor Green
+    Write-Host "[5/5] Created kernel payload: $kernelDst" -ForegroundColor Green
 }
 
 # Copy userland init ELF to root of boot partition
@@ -79,13 +85,21 @@ $initSrc = "target\x86_64-unknown-none\$targetMode\novaos-init"
 $initDst = Join-Path $buildDir "init.elf"
 if (Test-Path $initSrc) {
     Copy-Item $initSrc $initDst -Force
-    Write-Host "[4/4] Created userland init payload: $initDst" -ForegroundColor Green
+    Write-Host "[5/5] Created userland init payload: $initDst" -ForegroundColor Green
+}
+
+# Copy userland shell ELF to root of boot partition
+$shellSrc = "target\x86_64-unknown-none\$targetMode\novaos-shell"
+$shellDst = Join-Path $buildDir "shell.elf"
+if (Test-Path $shellSrc) {
+    Copy-Item $shellSrc $shellDst -Force
+    Write-Host "[5/5] Created userland shell payload: $shellDst" -ForegroundColor Green
 }
 
 # Copy boot configuration
 if (Test-Path "novaos.cfg") {
     Copy-Item "novaos.cfg" (Join-Path $buildDir "novaos.cfg") -Force
-    Write-Host "[4/4] Copied boot configuration: $buildDir\novaos.cfg" -ForegroundColor Green
+    Write-Host "[5/5] Copied boot configuration: $buildDir\novaos.cfg" -ForegroundColor Green
 }
 
 Write-Host "`n[SUCCESS] NovaOS Zero build sequence complete!" -ForegroundColor Green

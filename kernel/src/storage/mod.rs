@@ -12,6 +12,21 @@ pub trait BlockDevice {
     fn write_sector(&mut self, lba: u64, buf: &[u8; 512]) -> Result<(), &'static str>;
 }
 
+impl<B: BlockDevice> BlockDevice for &mut B {
+    fn sector_size(&self) -> usize {
+        (**self).sector_size()
+    }
+    fn total_sectors(&self) -> u64 {
+        (**self).total_sectors()
+    }
+    fn read_sector(&mut self, lba: u64, buf: &mut [u8; 512]) -> Result<(), &'static str> {
+        (**self).read_sector(lba, buf)
+    }
+    fn write_sector(&mut self, lba: u64, buf: &[u8; 512]) -> Result<(), &'static str> {
+        (**self).write_sector(lba, buf)
+    }
+}
+
 pub struct VirtioBlockDevice {
     pub io_base: u16,
     pub capacity_sectors: u64,
