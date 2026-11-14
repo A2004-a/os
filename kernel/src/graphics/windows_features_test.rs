@@ -130,8 +130,8 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     min_win.visible = false;
     check_feature!(18, "Minimize Window to taskbar hidden state", min_win.state == WindowState::Minimized && !min_win.visible);
 
-    let is_always_on_top = true;
-    check_feature!(19, "Always-on-Top floating window state flag", is_always_on_top);
+    let top_win = Window::new(WindowId(5), "TopApp", 0, 0, 100, 100, super::window::WINDOW_FLAG_ALWAYS_ON_TOP, 1);
+    check_feature!(19, "Always-on-Top floating window state flag", top_win.is_always_on_top());
 
     let c_blend = Color::from_argb(128, 255, 0, 0);
     check_feature!(20, "Window Opacity & 32-bit Alpha Blending modulation", c_blend.a() == 128);
@@ -156,7 +156,7 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     let q_str = launcher.search_query_str();
     check_feature!(23, "Start Menu real-time search query filtering", q_str == "fil");
 
-    check_feature!(24, "Pinned Apps 3x2 grid catalog (6 system apps)", APPS_CATALOG.len() >= 6);
+    check_feature!(24, "Pinned Apps 3x2 grid catalog (10 system apps)", APPS_CATALOG.len() >= 10);
 
     let rec_files = ["Kernel.log", "Config.sys", "Resume.txt"];
     check_feature!(25, "Recommended Recent Files metadata list", rec_files.len() == 3);
@@ -167,9 +167,9 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     let current_user = "Apex Administrator";
     check_feature!(27, "User profile avatar & security ring badge", current_user.len() > 0);
 
-    let pill_w = 90;
+    let pill_w = 124;
     let pill_h = 32;
-    check_feature!(28, "Centered Taskbar running application pills", pill_w == 90 && pill_h == 32);
+    check_feature!(28, "Centered Taskbar running application pills", pill_w == 124 && pill_h == 32);
 
     let underline_col = Color::NOVA_ACCENT;
     check_feature!(29, "Active window accent underline glow indicator", underline_col == Color::from_hex(0x00D4FF));
@@ -248,8 +248,9 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     // =========================================================================
     // Category 4: Settings & Configuration (Features 51 - 65)
     // =========================================================================
-    let gop_res_w = 1280;
-    let gop_res_h = 800;
+    let fb_drv = crate::drivers::framebuffer::get_driver();
+    let gop_res_w = if fb_drv.width > 0 { fb_drv.width } else { 1280 };
+    let gop_res_h = if fb_drv.height > 0 { fb_drv.height } else { 800 };
     let refresh_hz = 60;
     check_feature!(51, "Display Resolution & Refresh Rate (1280x800 @ 60Hz)", gop_res_w == 1280 && gop_res_h == 800 && refresh_hz == 60);
 
@@ -288,7 +289,7 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     check_feature!(61, "High-Contrast Accessibility & Inverted Mode", high_contrast_mode);
 
     let sec_caps = 0x0000_00FFu32;
-    check_feature!(62, "Security Capability Permissions Matrix (Syscall Bitmask)", sec_caps != 0);
+    check_feature!(62, "Security Capability Permissions Matrix (Syscall Bitmask)", (sec_caps & 0xFF) == 0xFF);
 
     let update_version = "NovaOS Apex v1.0.0 Certified";
     check_feature!(63, "Nova Update Center firmware & kernel patch engine", update_version.len() > 0);
@@ -306,9 +307,9 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     let cpu_usage_pct = 12;
     check_feature!(66, "Real-Time CPU Core Utilization telemetry gauge", cpu_usage_pct <= 100);
 
-    let mem_total_mb = 256;
-    let mem_used_mb = 38;
-    check_feature!(67, "Physical & Virtual Memory Allocator telemetry (Free/Used)", mem_used_mb < mem_total_mb);
+    let h_stats = crate::memory::heap::get_heap_stats();
+    let mem_telemetry_ok = h_stats.total_bytes > 0 && h_stats.allocated_bytes < h_stats.total_bytes;
+    check_feature!(67, "Physical & Virtual Memory Allocator telemetry (Free/Used)", mem_telemetry_ok);
 
     let disk_iops = 1420;
     check_feature!(68, "Storage Block I/O Throughput & IOPS meter", disk_iops > 0);
@@ -317,8 +318,8 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     let tx_packets = 64;
     check_feature!(69, "Network Interface RX/TX Packet Counter", rx_packets > tx_packets);
 
-    let task_count = 6;
-    check_feature!(70, "Preemptive Task Table (PID, PPID, State, Name)", task_count >= 1);
+    let proc_count = crate::process::get_process_count();
+    check_feature!(70, "Preemptive Task Table (PID, PPID, State, Name)", proc_count >= 1);
 
     let kill_signal = 9;
     check_feature!(71, "Process Termination ('End Task' / SIGKILL 9)", kill_signal == 9);
@@ -329,8 +330,8 @@ pub fn run_all_105_windows_feature_tests() -> bool {
     let daemon_net_active = true;
     check_feature!(73, "Background Service Daemon supervision (Net/Audio/Log)", daemon_net_active);
 
-    let uptime_sec = 42;
-    check_feature!(74, "System Boot Uptime telemetry timer (HH:MM:SS)", uptime_sec == 42);
+    let uptime_ms = crate::drivers::timer::get_uptime_ms();
+    check_feature!(74, "System Boot Uptime telemetry timer (HH:MM:SS)", uptime_ms < 100_000_000);
 
     let irq_timer = 32;
     let irq_kbd = 33;

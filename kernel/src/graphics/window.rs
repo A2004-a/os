@@ -86,6 +86,11 @@ impl Window {
         (self.flags & WINDOW_FLAG_FRAMELESS) != 0
     }
 
+    #[inline(always)]
+    pub fn is_always_on_top(&self) -> bool {
+        (self.flags & WINDOW_FLAG_ALWAYS_ON_TOP) != 0
+    }
+
     pub fn client_rect(&self) -> Rect {
         if self.is_frameless() {
             Rect::new(self.rect.x, self.rect.y, self.rect.width, self.rect.height)

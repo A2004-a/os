@@ -17,13 +17,17 @@ pub struct LauncherApp {
     pub icon_char: char,
 }
 
-pub static APPS_CATALOG: [LauncherApp; 6] = [
+pub static APPS_CATALOG: [LauncherApp; 10] = [
     LauncherApp { name: "Nova Files", desc: "VFS file manager", category: "System", icon_char: 'F' },
     LauncherApp { name: "Terminal", desc: "Ring 3 shell", category: "Utilities", icon_char: 'T' },
     LauncherApp { name: "System Monitor", desc: "Tasks & memory", category: "System", icon_char: 'M' },
     LauncherApp { name: "Settings", desc: "Configuration", category: "System", icon_char: 'S' },
     LauncherApp { name: "Package Manager", desc: "NVP store", category: "Utilities", icon_char: 'P' },
     LauncherApp { name: "Network Center", desc: "Sockets & ports", category: "Utilities", icon_char: 'N' },
+    LauncherApp { name: "Calculator", desc: "Math & Programmer", category: "Utilities", icon_char: 'C' },
+    LauncherApp { name: "Notepad", desc: "Text editor", category: "Productivity", icon_char: 'E' },
+    LauncherApp { name: "Device Manager", desc: "Hardware tree", category: "System", icon_char: 'D' },
+    LauncherApp { name: "Snipping Tool", desc: "Screen capture", category: "Utilities", icon_char: 'X' },
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
