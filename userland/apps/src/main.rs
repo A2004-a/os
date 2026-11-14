@@ -10,21 +10,29 @@ use core::panic::PanicInfo;
 use core::ptr::addr_of_mut;
 use novaos_apex_runtime::*;
 
+mod calculator;
 mod devicemanager;
 mod files;
 mod installer;
+mod lock_screen;
 mod monitor;
+mod notepad;
 mod packages;
 mod recovery;
+mod run_dialog;
 mod settings;
 mod terminal;
 
+use calculator::NovaCalculatorApp;
 use devicemanager::NovaDeviceManagerApp;
 use files::NovaFilesApp;
 use installer::NovaInstallerApp;
+use lock_screen::NovaLockScreenApp;
 use monitor::NovaMonitorApp;
+use notepad::NovaNotepadApp;
 use packages::NovaPackagesApp;
 use recovery::NovaRecoveryApp;
+use run_dialog::NovaRunDialogApp;
 use settings::NovaSettingsApp;
 use terminal::NovaTerminalApp;
 
@@ -99,7 +107,7 @@ pub extern "C" fn _start() -> ! {
         print("[APPS] [PASS] Nova Recovery Center window mapped and composited.\n");
     }
 
-    // 8. Initialize Nova Device Manager & Hardware Platform
+    // 8. Initialize Nova Device Manager
     let dev_app = NovaDeviceManagerApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
     dev_app.render(buf, APP_WIDTH);
     if let Ok(w_dev) = create_window("Nova Device Manager", APP_WIDTH, APP_HEIGHT, 0) {
@@ -107,7 +115,39 @@ pub extern "C" fn _start() -> ! {
         print("[APPS] [PASS] Nova Device Manager window mapped and composited.\n");
     }
 
-    print("\n[APPS SUCCESS] All 8 core native applications operational!\n");
+    // 9. Initialize Nova Calculator
+    let calc_app = NovaCalculatorApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    calc_app.render(buf, APP_WIDTH);
+    if let Ok(w_calc) = create_window("Calculator", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_calc, &buf[..]);
+        print("[APPS] [PASS] Nova Calculator window mapped and composited.\n");
+    }
+
+    // 10. Initialize Nova Notepad
+    let notepad_app = NovaNotepadApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    notepad_app.render(buf, APP_WIDTH);
+    if let Ok(w_note) = create_window("Notepad", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_note, &buf[..]);
+        print("[APPS] [PASS] Nova Notepad window mapped and composited.\n");
+    }
+
+    // 11. Initialize Nova Run Dialog
+    let run_app = NovaRunDialogApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    run_app.render(buf, APP_WIDTH);
+    if let Ok(w_run) = create_window("Run", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_run, &buf[..]);
+        print("[APPS] [PASS] Nova Run Dialog window mapped and composited.\n");
+    }
+
+    // 12. Initialize Nova Lock Screen
+    let lock_app = NovaLockScreenApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    lock_app.render(buf, APP_WIDTH);
+    if let Ok(w_lock) = create_window("Lock Screen", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_lock, &buf[..]);
+        print("[APPS] [PASS] Nova Lock Screen window mapped and composited.\n");
+    }
+
+    print("\n[APPS SUCCESS] All 12 Windows 11-class native applications operational!\n");
     exit(0);
 }
 

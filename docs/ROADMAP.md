@@ -14,4 +14,5 @@
 | **M9** | **Core Native Applications** | Nova Files, Nova System Monitor, Nova Settings, Package Manager | **Completed** |
 | **M10** | **App Platform, Installer & Recovery** | Signed .nvp packages, GPT disk partitioner, automated OS installer, recovery rollback | **Completed** |
 | **M11** | **Hardware Expansion** | AHCI SATA 1.3, NVMe 1.4, USB 3.0 xHCI & HID, Intel HD Audio | **Completed** |
-| **M12** | **Hardening & Release Engineering** | Syscall & network fuzzing, hardware conformance certification, release ISO | **Active Target** |
+| **M12** | **Hardening & Release Engineering** | Syscall & network fuzzing, hardware conformance certification, release ISO | **Completed** |
+| **M13** | **Windows 11 Desktop & 105 Gates** | 105-feature verification across Desktop, Taskbar, Explorer, Settings, Diagnostics, Apps & Kernel | **Completed** |

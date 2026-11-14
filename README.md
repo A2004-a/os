@@ -186,6 +186,7 @@ Generates distribution artifacts with SHA-256 integrity checksums in `dist/`:
 
 ## 📚 Documentation Index
 
+- [Windows 11 Feature Catalog (105 Gates)](docs/WINDOWS_FEATURES.md)
 - [System Architecture Manual](docs/ARCHITECTURE.md)
 - [12-Milestone Development Roadmap](docs/ROADMAP.md)
 - [Security Audit & Fuzzing Report](docs/SECURITY_AUDIT.md)

@@ -1,12 +1,18 @@
 //! NovaOS Apex — Desktop Shell Manager
-//! Integrates Compositor, Nova Bar, Nova Launcher, Snap Assist, and Virtual Workspaces.
+//! Integrates Compositor, Nova Bar, Nova Launcher, Snap Assist, Virtual Workspaces,
+//! Desktop Context Menu, Quick Settings, Notifications Flyout, and Task Switcher.
 
 use super::bar::{BarAction, NovaBar};
 use super::compositor::Compositor;
+use super::context_menu::{ContextMenu, ContextAction};
+use super::desktop_features::DesktopFeatures;
 use super::geometry::{Point, Rect};
 use super::launcher::{LauncherAction, NovaLauncher};
+use super::notifications::NotificationCenter;
+use super::quick_settings::QuickSettings;
 use super::snap::{SnapEngine, SnapPosition};
 use super::surface::Surface;
+use super::task_switcher::TaskSwitcher;
 use super::window::{WindowId, WindowState};
 use super::workspace::WorkspaceManager;
 use crate::drivers::framebuffer::get_driver;
@@ -20,6 +26,11 @@ pub struct DesktopShell {
     pub bar: NovaBar,
     pub launcher: NovaLauncher,
     pub workspaces: WorkspaceManager,
+    pub context_menu: ContextMenu,
+    pub quick_settings: QuickSettings,
+    pub notifications: NotificationCenter,
+    pub task_switcher: TaskSwitcher,
+    pub features: DesktopFeatures,
     pub active_snap_preview: SnapPosition,
     pub dragging_window: Option<WindowId>,
     pub drag_start_mouse: Point,
@@ -33,12 +44,22 @@ impl DesktopShell {
         let bar = NovaBar::new();
         let launcher = NovaLauncher::new();
         let workspaces = WorkspaceManager::new();
+        let context_menu = ContextMenu::new();
+        let quick_settings = QuickSettings::new();
+        let notifications = NotificationCenter::new();
+        let task_switcher = TaskSwitcher::new();
+        let features = DesktopFeatures::new();
 
         Self {
             compositor,
             bar,
             launcher,
             workspaces,
+            context_menu,
+            quick_settings,
+            notifications,
+            task_switcher,
+            features,
             active_snap_preview: SnapPosition::None,
             dragging_window: None,
             drag_start_mouse: Point::ZERO,
@@ -65,7 +86,6 @@ impl DesktopShell {
 
             let old_rect = win.rect;
             win.rect = target_rect;
-            // Resize client surface to match new client rect
             let cr = win.client_rect();
             win.surface = Surface::new(cr.width, cr.height);
 
@@ -103,8 +123,6 @@ impl DesktopShell {
 
         if let Some(r) = win_rect {
             self.compositor.damage.add_rect(r);
-
-            // Re-render taskbar
             let bar_rect = self.bar.rect(self.compositor.width, self.compositor.height);
             self.compositor.damage.add_rect(bar_rect);
         }
@@ -112,7 +130,6 @@ impl DesktopShell {
 
     pub fn switch_workspace(&mut self, ws_id: u8) {
         self.workspaces.set_active_workspace(ws_id, &mut self.compositor.windows, &mut self.compositor.damage);
-        // Damage taskbar to update active workspace pill
         let bar_rect = self.bar.rect(self.compositor.width, self.compositor.height);
         self.compositor.damage.add_rect(bar_rect);
     }
@@ -128,7 +145,57 @@ impl DesktopShell {
         self.compositor.damage.add_rect(bar_rect);
     }
 
+    pub fn toggle_quick_settings(&mut self) {
+        self.quick_settings.toggle();
+        let qrect = self.quick_settings.rect(self.compositor.width, self.compositor.height, self.bar.height);
+        self.compositor.damage.add_rect(qrect);
+    }
+
+    pub fn toggle_notifications(&mut self) {
+        self.notifications.toggle();
+        let nrect = self.notifications.rect(self.compositor.width, self.compositor.height, self.bar.height);
+        self.compositor.damage.add_rect(nrect);
+    }
+
     pub fn on_mouse_down(&mut self, x: i32, y: i32, button: u8) {
+        // Right-Click on Desktop Context Menu
+        if button == 2 {
+            if self.compositor.window_at(x, y).is_none() && !self.bar.rect(self.compositor.width, self.compositor.height).contains_coords(x, y) {
+                self.context_menu.show_at(x, y, self.compositor.width, self.compositor.height);
+                self.compositor.damage.add_rect(self.context_menu.rect());
+                return;
+            }
+        }
+
+        // Left-Click on Context Menu
+        if self.context_menu.visible {
+            if let Some(action) = self.context_menu.hit_test(x, y) {
+                match action {
+                    ContextAction::OpenTerminal => {
+                        self.compositor.create_window("Terminal", 140, 120, 520, 340, 0, 1);
+                    }
+                    ContextAction::NewTextFile => {
+                        self.compositor.create_window("Notepad", 160, 140, 480, 320, 0, 1);
+                    }
+                    ContextAction::DisplaySettings => {
+                        self.compositor.create_window("Settings", 180, 160, 500, 360, 0, 1);
+                    }
+                    ContextAction::Refresh => {
+                        self.compositor.damage.add_rect(Rect::new(0, 0, self.compositor.width, self.compositor.height));
+                    }
+                    _ => {}
+                }
+                let old_r = self.context_menu.rect();
+                self.context_menu.hide();
+                self.compositor.damage.add_rect(old_r);
+                return;
+            } else {
+                let old_r = self.context_menu.rect();
+                self.context_menu.hide();
+                self.compositor.damage.add_rect(old_r);
+            }
+        }
+
         // 1. Check Nova Bar click
         if let Some(action) = self.bar.hit_test(x, y, self.compositor.width, self.compositor.height, &self.compositor.windows) {
             match action {
@@ -143,7 +210,14 @@ impl DesktopShell {
                     }
                     self.compositor.bring_to_front(id);
                 }
-                BarAction::TrayClick => {}
+                BarAction::TrayClick => {
+                    // Check if clicked in clock or quick settings zone
+                    if x > self.compositor.width as i32 - 90 {
+                        self.toggle_notifications();
+                    } else {
+                        self.toggle_quick_settings();
+                    }
+                }
             }
             return;
         }
@@ -167,7 +241,6 @@ impl DesktopShell {
                 }
                 return;
             } else {
-                // Click outside launcher closes it
                 self.toggle_launcher();
             }
         }
@@ -229,6 +302,11 @@ impl DesktopShell {
             }
 
             self.compositor.on_mouse_down(x, y, button);
+        } else {
+            // Wallpaper click: start marquee selection
+            if button == 1 {
+                self.features.start_marquee(Point::new(x, y));
+            }
         }
     }
 
@@ -241,13 +319,16 @@ impl DesktopShell {
 
             self.compositor.set_window_position(win_id, new_x, new_y);
 
-            // Detect Snap Zones during drag
             let snap_target = SnapEngine::detect_snap_zone(x, y, self.compositor.width, self.compositor.height, self.bar.height);
             if snap_target != self.active_snap_preview {
                 self.active_snap_preview = snap_target;
-                // Damage entire usable area to render/clear ghost preview
                 let usable = self.usable_rect();
                 self.compositor.damage.add_rect(usable);
+            }
+        } else if self.features.marquee_start.is_some() {
+            self.features.update_marquee(Point::new(x, y));
+            if let Some(mr) = self.features.marquee_rect() {
+                self.compositor.damage.add_rect(mr);
             }
         }
 
@@ -260,6 +341,9 @@ impl DesktopShell {
                 self.snap_window(win_id, self.active_snap_preview);
                 self.active_snap_preview = SnapPosition::None;
             }
+        }
+        if let Some(mr) = self.features.end_marquee() {
+            self.compositor.damage.add_rect(mr);
         }
         self.compositor.on_mouse_up(x, y, button);
     }
@@ -280,7 +364,10 @@ impl DesktopShell {
             self.compositor.render_wallpaper_rect(r);
         }
 
-        // 2. Render all visible windows in ascending Z-order (filtered by active workspace)
+        // 1b. Render Desktop Marquee selection (if active)
+        self.features.render_marquee(&mut self.compositor.backbuffer);
+
+        // 2. Render all visible windows in ascending Z-order
         for win in &self.compositor.windows {
             if !self.workspaces.is_window_visible(win) {
                 continue;
@@ -290,7 +377,7 @@ impl DesktopShell {
             }
         }
 
-        // 3. Render Snap Ghost Preview (if dragging window into a snap zone)
+        // 3. Render Snap Ghost Preview
         if self.active_snap_preview != SnapPosition::None {
             let usable = self.usable_rect();
             SnapEngine::render_preview(self.active_snap_preview, usable, &mut self.compositor.backbuffer);
@@ -315,6 +402,41 @@ impl DesktopShell {
                 self.compositor.height,
                 self.bar.height,
             );
+        }
+
+        // 5b. Render Quick Settings (if open)
+        if self.quick_settings.visible {
+            self.quick_settings.render(
+                &mut self.compositor.backbuffer,
+                self.compositor.width,
+                self.compositor.height,
+                self.bar.height,
+            );
+        }
+
+        // 5c. Render Notifications Flyout (if open)
+        if self.notifications.visible {
+            self.notifications.render(
+                &mut self.compositor.backbuffer,
+                self.compositor.width,
+                self.compositor.height,
+                self.bar.height,
+            );
+        }
+
+        // 5d. Render Alt+Tab Task Switcher (if open)
+        if self.task_switcher.visible {
+            self.task_switcher.render(
+                &mut self.compositor.backbuffer,
+                self.compositor.width,
+                self.compositor.height,
+                &self.compositor.windows,
+            );
+        }
+
+        // 5e. Render Desktop Context Menu (if open)
+        if self.context_menu.visible {
+            self.context_menu.render(&mut self.compositor.backbuffer);
         }
 
         // 6. Render Mouse Cursor Overlay

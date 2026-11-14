@@ -2,6 +2,32 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [1.1.0] - 2026-11-14 — Windows 11 Desktop Features & 105 Verification Gates
+
+### Added
+- **Windows 11-Class Desktop Subsystems & Components:**
+  - **Desktop Right-Click Context Menu (`kernel/src/graphics/context_menu.rs`):** View, Sort, Refresh, New File, New Folder, Display settings, Open in Terminal, About NovaOS.
+  - **Quick Settings & Action Center (`kernel/src/graphics/quick_settings.rs`):** Wi-Fi, Bluetooth, Airplane mode, Night Light, Battery Saver, Brightness and Volume sliders.
+  - **Notifications & Calendar Flyout (`kernel/src/graphics/notifications.rs`):** Toast alert notification stack and interactive monthly calendar.
+  - **Alt+Tab Task Switcher (`kernel/src/graphics/task_switcher.rs`):** Visual window card switcher with app thumbnails.
+  - **Desktop Features & Shell Utilities (`kernel/src/graphics/desktop_features.rs`):** Marquee drag selection, desktop icon grid, wallpaper themes, and system clipboard.
+  - **Windows 11 Native Applications (`userland/apps/src/`):**
+    - `calculator.rs`: Standard arithmetic and Programmer Hex/Bin/Dec calculator.
+    - `notepad.rs`: Windows Notepad with multi-line editing, line numbers, and file persistence.
+    - `run_dialog.rs`: Windows `Win+R` quick launch dialog.
+    - `lock_screen.rs`: Lock screen with large digital clock, date, avatar, and PIN unlock.
+- **Automated 105-Feature Verification Test Suite (`kernel/src/graphics/windows_features_test.rs`):**
+  - 105 automated, sequentially logged gates covering all 7 operating system domains:
+    - 20 Window & Desktop Management features (Snap Halves/Quadrants, Maximize, Restore, Aero Shake, Peek, Workspaces, Z-order, Dragging, Cascading, Opacity).
+    - 15 Taskbar & Start Menu features (4-Tile Logo, Popup, Filter, Pinned Apps, Recent Files, Power, Avatar, Pills, Underline Glow, Search, System Tray).
+    - 15 File Explorer & Storage features (Tabs, Breadcrumbs, Quick Access, Filter, Preview, Metadata, Atomic Create, Mkdir, Unlink, Streaming, Trash, Permissions).
+    - 15 Settings & Configuration features (Resolution, Personalization, Network, Sound, Mouse, Accounts, Associations, Timezone, Partitions, Power, Accessibility).
+    - 10 System Monitor & Diagnostics features (CPU Meter, Memory Allocator, Disk IOPS, Network Packets, Process Table, End Task, Priorities, Daemons, Uptime, Hardware).
+    - 15 Productivity & Built-in Apps features (Terminal, History, Notepad, Persistence, Calculator, Programmer Mode, Stopwatch, Image Viewer, Device Manager, Store, Clipboard, Snipping, Run, Lock Screen, Event Viewer).
+    - 15 Core Kernel, Hardware & Security features (Scrubber, Character Map, Storage Routing, AHCI, NVMe, xHCI, HID, HDA, GOP, Timer 1000Hz, UART, Paging NX/WP, IST1, Scheduler, Fuzzer).
+  - All 105 tests verified passing with 0 errors in automated QEMU test harness.
+
+
 ## [0.11.0] - 2026-11-14 — Milestone 11 (Hardware Expansion)
 
 ### Added

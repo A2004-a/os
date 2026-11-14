@@ -217,6 +217,14 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 12 WARN] Hardening & Release verification encountered anomalies.\n");
     }
 
+    // 16b. Run Windows 11 Desktop Features Verification Suite (105 Gates)
+    let win105_passed = graphics::windows_features_test::run_all_105_windows_feature_tests();
+    if win105_passed {
+        serial::write_str("[KERNEL] Windows 11-class desktop subsystem certified with 105 passing features!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Some Windows 11 features did not pass verification.\n");
+    }
+
     // 17. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();

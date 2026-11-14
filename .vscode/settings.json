@@ -1,0 +1,10 @@
+{
+    "go.goroot": "C:\\Program Files\\Go",
+    "go.gopath": "C:\\Users\\amiyo garai\\go",
+    "go.alternateTools": {
+        "go": "C:\\Program Files\\Go\\bin\\go.exe"
+    },
+    "terminal.integrated.env.windows": {
+        "PATH": "C:\\Program Files\\Go\\bin;${env:PATH}"
+    }
+}
