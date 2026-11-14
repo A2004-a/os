@@ -1,0 +1,11 @@
+/target
+/build
+/node_modules
+*.efi
+*.img
+*.iso
+*.bin
+*.log
+.gdb_history
+.DS_Store
+Thumbs.db

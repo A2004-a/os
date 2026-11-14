@@ -1,0 +1,9 @@
+[package]
+name = "novaos-apex-toolkit"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Apex Platform Engineering <engineering@novaos-apex.internal>"]
+description = "NovaOS Apex Graphical Widget & UI Toolkit (NovaUI)"
+
+[dependencies]
+novaos-apex-runtime = { path = "../runtime" }

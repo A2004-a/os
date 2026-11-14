@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+./tools/run-qemu --debug &
+QEMU_PID=$!
+
+trap "kill $QEMU_PID 2>/dev/null || true" EXIT
+
+sleep 1
+
+if command -v gdb >/dev/null 2>&1; then
+    gdb -ex "target remote localhost:1234" -ex "symbol-file build/novaos-apex.elf"
+elif command -v rust-gdb >/dev/null 2>&1; then
+    rust-gdb -ex "target remote localhost:1234" -ex "symbol-file build/novaos-apex.elf"
+else
+    echo "gdb not found. Connect manually to localhost:1234."
+    wait $QEMU_PID
+fi

@@ -1,0 +1,10 @@
+[package]
+name = "novaos-apex-apps"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Apex Platform Engineering <engineering@novaos-apex.internal>"]
+description = "NovaOS Apex Native Applications Suite"
+
+[dependencies]
+novaos-apex-runtime = { path = "../runtime" }
+novaos-apex-toolkit = { path = "../toolkit" }

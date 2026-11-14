@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RELEASE_FLAG=""
+TARGET_MODE="debug"
+
+if [[ "${1:-}" == "--release" || "${1:-}" == "-Release" ]]; then
+    RELEASE_FLAG="--release"
+    TARGET_MODE="release"
+fi
+
+echo "=========================================="
+echo "   NovaOS Apex Multi-Stage OS Builder     "
+echo "=========================================="
+
+echo "[1/3] Building 64-bit UEFI Loader (BOOTX64.EFI)..."
+cargo build --package novaos-apex-boot --target x86_64-unknown-uefi $RELEASE_FLAG
+
+echo "[2/3] Building NovaOS Apex Kernel (x86_64-unknown-none)..."
+cargo build --package novaos-apex-kernel --target x86_64-unknown-none $RELEASE_FLAG
+
+echo "[3/3] Creating Output Boot Directory..."
+mkdir -p build/EFI/BOOT
+
+cp -f "target/x86_64-unknown-uefi/$TARGET_MODE/novaos-apex-boot.efi" build/EFI/BOOT/BOOTX64.EFI
+cp -f "target/x86_64-unknown-none/$TARGET_MODE/novaos-apex-kernel" build/novaos-apex.elf
+
+echo "[SUCCESS] NovaOS Apex image build complete: build/EFI/BOOT/BOOTX64.EFI"

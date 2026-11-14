@@ -1,0 +1,9 @@
+[package]
+name = "novaos-apex-boot"
+version = "0.1.0"
+edition = "2021"
+authors = ["NovaOS Apex Platform Engineering <engineering@novaos-apex.internal>"]
+description = "NovaOS Apex 64-bit UEFI Boot Manager"
+
+[dependencies]
+# 100% Freestanding implementation without external build scripts or procedural macros

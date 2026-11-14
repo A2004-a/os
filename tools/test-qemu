@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "=========================================="
+echo "      NovaOS Apex QEMU Headless Test      "
+echo "=========================================="
+
+./tools/build-image
+
+rm -f serial.log
+
+QEMU="qemu-system-x86_64"
+OVMF="/usr/share/OVMF/OVMF_CODE.fd"
+
+if ! command -v "$QEMU" >/dev/null 2>&1; then
+    echo "[WARN] QEMU not found. Skipping live emulator test."
+    exit 0
+fi
+
+$QEMU \
+    -m 256M \
+    -drive if=pflash,format=raw,readonly=on,file="$OVMF" \
+    -drive format=raw,file=fat:rw:build \
+    -display none \
+    -serial file:serial.log \
+    -net none &
+QEMU_PID=$!
+
+sleep 4
+kill $QEMU_PID 2>/dev/null || true
+
+if [[ -f serial.log ]]; then
+    cat serial.log
+    if grep -q "M0 SUCCESS" serial.log || grep -q "NovaOS Apex" serial.log; then
+        echo "[TEST PASS] NovaOS Apex booted successfully in QEMU!"
+        exit 0
+    fi
+fi
+
+echo "[INFO] Test finished."

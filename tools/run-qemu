@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+QEMU="qemu-system-x86_64"
+OVMF="/usr/share/OVMF/OVMF_CODE.fd"
+EXTRA_ARGS=()
+
+if [[ "${1:-}" == "--debug" || "${1:-}" == "-Debug" ]]; then
+    EXTRA_ARGS+=("-s" "-S")
+    echo "[DEBUG] GDB server waiting on localhost:1234"
+fi
+
+if [[ "${1:-}" == "--nogui" || "${1:-}" == "-NoGui" ]]; then
+    EXTRA_ARGS+=("-display" "none")
+fi
+
+$QEMU \
+    -m 256M \
+    -drive if=pflash,format=raw,readonly=on,file="$OVMF" \
+    -drive format=raw,file=fat:rw:build \
+    -serial stdio \
+    -net none \
+    "${EXTRA_ARGS[@]}"
