@@ -124,6 +124,9 @@ pub extern "C" fn exception_dispatcher(ctx: &InterruptContext) {
                 crate::arch::x86_64::io::outb(0x20, 0x20); // EOI to Master PIC
             }
         }
+        44 => {
+            crate::drivers::ps2_mouse::on_mouse_interrupt();
+        }
         _ => {
             serial_println!("\n[CPU INTERRUPT / EXCEPTION: Vector {}]", ctx.int_num);
             serial_println!("  Error Code: 0x{:X}, RIP: 0x{:016X}", ctx.error_code, ctx.rip);
@@ -204,6 +207,7 @@ isr_err!(isr21, 21);    // #CP
 
 isr_no_err!(isr32, 32); // IRQ0 Timer
 isr_no_err!(isr33, 33); // IRQ1 Keyboard
+isr_no_err!(isr44, 44); // IRQ12 Mouse
 
 pub fn init() {
     unsafe {
@@ -235,6 +239,7 @@ pub fn init() {
         // Hardware IRQ Interrupts
         IDT_TABLE[32].set_handler(isr32 as usize, 0);
         IDT_TABLE[33].set_handler(isr33 as usize, 0);
+        IDT_TABLE[44].set_handler(isr44 as usize, 0);
 
         let idt_desc = IdtDescriptor {
             size: (size_of::<[IdtEntry; 256]>() - 1) as u16,

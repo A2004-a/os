@@ -37,6 +37,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // Run Milestone M2 Memory, Paging, and Object diagnostic suite
     novaos_kernel::memory::memory_test::run_memory_diagnostics(boot_info);
 
+    // Run Milestone M3 Hardware Driver and Storage diagnostic suite
+    novaos_kernel::drivers::drivers_test::run_driver_diagnostics();
+
     println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");
 

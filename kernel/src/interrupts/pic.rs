@@ -54,9 +54,10 @@ impl ChainedPics {
         outb(PIC2_DATA, 0x01);
         io_wait();
 
-        // Restore masks (or unmask Timer IRQ0 and Keyboard IRQ1)
-        outb(PIC1_DATA, 0xFC); // Unmask IRQ0 and IRQ1
-        outb(PIC2_DATA, 0xFF); // Mask all slave IRQs for now
+        // Restore masks: unmask IRQ0 (Timer), IRQ1 (Keyboard), IRQ2 (Cascade) on Master
+        outb(PIC1_DATA, 0xF8);
+        // Unmask IRQ12 (Mouse on line 4) on Slave PIC
+        outb(PIC2_DATA, 0xEF);
     }
 
     pub unsafe fn notify_end_of_interrupt(&mut self, interrupt_id: u8) {
