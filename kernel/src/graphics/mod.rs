@@ -55,6 +55,9 @@ pub fn init() {
     let width = if fb.width > 0 { fb.width } else { 1280 };
     let height = if fb.height > 0 { fb.height } else { 800 };
 
+    // Disable raw console overwriting GOP framebuffer once graphical desktop begins
+    crate::drivers::console::set_graphics_active(true);
+
     let mut comp = Compositor::new(width, height);
     comp.composite();
     *COMPOSITOR.lock() = Some(comp);

@@ -295,7 +295,22 @@ pub fn init() {
     }
 }
 
+static mut CONSOLE_GRAPHICS_ACTIVE: bool = false;
+
+pub fn set_graphics_active(active: bool) {
+    unsafe {
+        CONSOLE_GRAPHICS_ACTIVE = active;
+    }
+}
+
+pub fn is_graphics_active() -> bool {
+    unsafe { CONSOLE_GRAPHICS_ACTIVE }
+}
+
 pub fn write_str(s: &str) {
+    if unsafe { CONSOLE_GRAPHICS_ACTIVE } {
+        return;
+    }
     let con = unsafe { &mut *addr_of_mut!(CONSOLE_DRIVER) };
     con.write_str(s);
 }

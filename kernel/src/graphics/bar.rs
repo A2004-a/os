@@ -110,12 +110,12 @@ impl NovaBar {
         }
 
         // 4. Centered Application Island (Running Apps)
-        let app_button_w = 90;
+        let app_button_w = 110;
         let app_button_h = 32;
         let total_apps_w = (windows.len() as i32) * (app_button_w + 8);
         let mut app_x = (screen_w as i32 - total_apps_w) / 2;
-        if app_x < 200 {
-            app_x = 200; // clamp past start / workspaces
+        if app_x < 240 {
+            app_x = 240; // clamp past start / workspaces
         }
 
         let app_y = bar_rect.y + 8;
@@ -135,6 +135,19 @@ impl NovaBar {
                 target.fill_rect(Rect::new(app_x + app_button_w / 2 - 2, app_rect.bottom() - 3, 4, 2), Color::TEXT_SECONDARY);
             }
 
+            // App icon square badge (14x14)
+            let icon_col = match win.title.as_str() {
+                "Nova Files" => Color::from_hex(0x388BFD),
+                "Terminal" | "Nova Terminal" => Color::from_hex(0x58A6FF),
+                "System Monitor" | "Nova System Monitor" => Color::from_hex(0x2EA043),
+                "Settings" | "Nova Settings" => Color::from_hex(0x8B949E),
+                "Calculator" => Color::from_hex(0xA371F7),
+                "Notepad" => Color::from_hex(0xD29922),
+                _ => Color::NOVA_ACCENT,
+            };
+            let icon_rect = Rect::new(app_x + 8, app_y + 9, 14, 14);
+            target.fill_rect(icon_rect, icon_col);
+
             // Window title snippet (max 9 chars)
             let mut snippet = [b' '; 9];
             let bytes = win.title.as_bytes();
@@ -142,7 +155,7 @@ impl NovaBar {
             snippet[..copy_len].copy_from_slice(&bytes[..copy_len]);
             let label = core::str::from_utf8(&snippet[..copy_len]).unwrap_or("App");
             let text_col = if is_active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY };
-            draw_text(target, label, app_x + 8, app_y + 8, text_col);
+            draw_text(target, label, app_x + 28, app_y + 8, text_col);
 
             app_x += app_button_w + 8;
         }
@@ -222,12 +235,12 @@ impl NovaBar {
         }
 
         // 3. Check running application pills
-        let app_button_w = 90;
+        let app_button_w = 110;
         let app_button_h = 32;
         let total_apps_w = (windows.len() as i32) * (app_button_w + 8);
         let mut app_x = (screen_w as i32 - total_apps_w) / 2;
-        if app_x < 200 {
-            app_x = 200;
+        if app_x < 240 {
+            app_x = 240;
         }
         let app_y = bar_rect.y + 8;
 
