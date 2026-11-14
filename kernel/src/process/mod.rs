@@ -1,8 +1,14 @@
 //! Process Control Block (PCB) & Address Space Isolation
 
 pub mod elf_loader;
+pub mod pkg_mgr;
+pub mod pkg_test;
 
 pub use elf_loader::{ElfError, ElfLoader, LoadedProgram};
+pub use pkg_mgr::{
+    InstalledPackage, PackageError, PackageHeader, PackageManifest, PackageManager,
+    CAP_ADMIN, CAP_ALL, CAP_AUDIO, CAP_GRAPHICS, CAP_IPC, CAP_NET, CAP_NONE, CAP_STORAGE,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProcessId(pub u64);

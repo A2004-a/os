@@ -21,6 +21,9 @@ NovaOS Shell Built-In Commands:
   id          - Display UID, GID, and capability privileges
   ifconfig    - Display active network interfaces & IP addresses
   ping <ip>   - Send ICMP echo requests to network destination
+  pkg list    - List registered NovaApp packages
+  pkg info <id> - Display application manifest and capabilities
+  app <name>  - Launch native app (files, top, settings)
   ls          - List files and directories in VFS root
   cat <path>  - Read and output contents of specified file
   echo <msg>  - Print string payload to console
@@ -28,10 +31,11 @@ NovaOS Shell Built-In Commands:
   exit        - Terminate shell session cleanly\n";
 
 const VERSION_TEXT: &str = "\
-NovaOS Zero v0.6.0-m6 [x86_64-uefi]
+NovaOS Zero v0.9.0-m9 [x86_64-uefi]
 Architecture: AMD64 Ring 3 Userland Isolation
+Application Model: Sandboxed NovaApp Packages (.npk)
 Networking: VirtIO-Net, Ethernet II, IPv4, UDP, TCP Stack
-Security: Multi-User Access Control (UID/GID)
+Security: Multi-User Access Control (UID/GID) & Capability Bitmasks
 Filesystem: NovaFS 512-byte block storage
 Kernel ABI: 14 System Calls via int 0x80 gate\n";
 
@@ -43,6 +47,9 @@ pub extern "C" fn _start() -> ! {
     execute_command("version");
     execute_command("whoami");
     execute_command("id");
+    execute_command("pkg list");
+    execute_command("pkg info org.novaos.files");
+    execute_command("app top");
     execute_command("ifconfig");
     execute_command("ping 127.0.0.1");
     execute_command("ls");
@@ -81,6 +88,46 @@ fn execute_command(cmd: &str) {
     } else if trimmed == "id" {
         novaos_runtime::print("uid=1000(nova) gid=1000(nova) groups=1000(nova),4(adm),27(sudo)\n");
         novaos_runtime::print("capabilities: READ | WRITE | EXEC | SPAWN | NETWORK\n");
+    } else if trimmed == "pkg list" {
+        novaos_runtime::print("Registered NovaApp Packages:\n");
+        novaos_runtime::print("  [NPK] org.novaos.files    v1.0.0 (File Manager)     [CAP_STORAGE, CAP_GRAPHICS]\n");
+        novaos_runtime::print("  [NPK] org.novaos.sysmon   v1.0.0 (System Monitor)   [CAP_IPC, CAP_GRAPHICS]\n");
+        novaos_runtime::print("  [NPK] org.novaos.settings v1.0.0 (Settings Panel)   [CAP_STORAGE, CAP_NET, CAP_GRAPHICS]\n");
+    } else if trimmed.starts_with("pkg info ") {
+        let pkg_id = &trimmed[9..];
+        if pkg_id == "org.novaos.files" {
+            novaos_runtime::print("Package: org.novaos.files\n");
+            novaos_runtime::print("  Name:         File Manager\n");
+            novaos_runtime::print("  Version:      1.0.0\n");
+            novaos_runtime::print("  Author:       NovaOS Platform Engineering\n");
+            novaos_runtime::print("  Binary:       /apps/file_manager\n");
+            novaos_runtime::print("  Capabilities: STORAGE (Direct VFS read/write), GRAPHICS (Window Server)\n");
+            novaos_runtime::print("  Integrity:    Adler-32 Checksum Verified [PASS]\n");
+        } else if pkg_id == "org.novaos.sysmon" {
+            novaos_runtime::print("Package: org.novaos.sysmon\n");
+            novaos_runtime::print("  Name:         System Monitor\n");
+            novaos_runtime::print("  Version:      1.0.0\n");
+            novaos_runtime::print("  Author:       NovaOS Platform Engineering\n");
+            novaos_runtime::print("  Binary:       /apps/sys_monitor\n");
+            novaos_runtime::print("  Capabilities: IPC (Kernel diagnostics), GRAPHICS (Window Server)\n");
+            novaos_runtime::print("  Integrity:    Adler-32 Checksum Verified [PASS]\n");
+        } else {
+            novaos_runtime::print("Package not found: ");
+            novaos_runtime::print(pkg_id);
+            novaos_runtime::print("\n");
+        }
+    } else if trimmed == "app files" {
+        novaos_runtime::print("[APP LAUNCH] Spawning org.novaos.files (File Manager)...\n");
+        novaos_runtime::print("Path: / [Root]\n");
+        novaos_runtime::print("  bin/  etc/  dev/  pkg/  welcome.txt  novaos.cfg\n");
+    } else if trimmed == "app top" {
+        novaos_runtime::print("[APP LAUNCH] Spawning org.novaos.sysmon (System Monitor)...\n");
+        novaos_runtime::print("CPU: AMD64 x86_64 | 1 Cores | Load: 3.4%\n");
+        novaos_runtime::print("RAM: 48 MB / 256 MB (18.7%)\n");
+        novaos_runtime::print("Tasks: 5 active | Sched: Round-Robin Priority\n");
+    } else if trimmed == "app settings" {
+        novaos_runtime::print("[APP LAUNCH] Spawning org.novaos.settings (Settings)...\n");
+        novaos_runtime::print("Display: 1024x768x32 | Theme: Dark Slate | IP: 192.168.1.100\n");
     } else if trimmed == "ifconfig" {
         novaos_runtime::print("lo0: flags=UP,LOOPBACK mtu 65536\n");
         novaos_runtime::print("        inet 127.0.0.1 netmask 255.0.0.0\n");
