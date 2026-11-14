@@ -38,6 +38,7 @@ pub struct DesktopShell {
     pub drag_start_mouse: Point,
     pub drag_start_win_pos: Point,
     pub uptime_ms: u64,
+    pub blit_to_screen: bool,
 }
 
 impl DesktopShell {
@@ -67,6 +68,7 @@ impl DesktopShell {
             drag_start_mouse: Point::ZERO,
             drag_start_win_pos: Point::ZERO,
             uptime_ms: 0,
+            blit_to_screen: false,
         }
     }
 
@@ -445,10 +447,12 @@ impl DesktopShell {
         self.compositor.cursor.render_to(&mut self.compositor.backbuffer);
 
         // 7. Flush changed backbuffer regions to hardware GOP framebuffer
-        let fb = get_driver();
-        if !fb.base_ptr.is_null() {
-            for r in self.compositor.damage.rects() {
-                self.compositor.backbuffer.blit_clipped_to_raw(fb.base_ptr, fb.stride, fb.width, fb.height, *r);
+        if self.blit_to_screen {
+            let fb = get_driver();
+            if !fb.base_ptr.is_null() {
+                for r in self.compositor.damage.rects() {
+                    self.compositor.backbuffer.blit_clipped_to_raw(fb.base_ptr, fb.stride, fb.width, fb.height, *r);
+                }
             }
         }
 
@@ -612,8 +616,20 @@ pub fn init() {
     let height = if fb.height > 0 { fb.height } else { 800 };
 
     let mut shell = DesktopShell::new(width, height);
+    shell.blit_to_screen = true;
     shell.spawn_default_apps();
     shell.composite();
 
     *DESKTOP.lock() = Some(shell);
+}
+
+/// Force a full-screen redraw and flush to hardware GOP framebuffer
+pub fn redraw_all() {
+    let mut shell_guard = DESKTOP.lock();
+    if let Some(shell) = shell_guard.as_mut() {
+        let w = shell.compositor.width;
+        let h = shell.compositor.height;
+        shell.compositor.damage.add_rect(Rect::new(0, 0, w, h));
+        shell.composite();
+    }
 }

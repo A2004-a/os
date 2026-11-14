@@ -785,16 +785,26 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
             match validate_user_string(title_ptr, 64) {
                 Ok(title) => {
                     let pid = crate::scheduler::get_current_pid();
-                    let mut comp_guard = crate::graphics::COMPOSITOR.lock();
-                    if let Some(comp) = comp_guard.as_mut() {
-                        let cascade_idx = (comp.windows.len() % 6) as i32;
+                    let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+                    if let Some(shell) = shell_guard.as_mut() {
+                        let cascade_idx = (shell.compositor.windows.len() % 6) as i32;
                         let start_x = 100 + (cascade_idx * 36);
                         let start_y = 50 + (cascade_idx * 28);
-                        let win_id = comp.create_window(title, start_x, start_y, width, height, flags, pid);
-                        comp.composite();
+                        let win_id = shell.compositor.create_window(title, start_x, start_y, width, height, flags, pid);
+                        shell.composite();
                         win_id.0 as i64
                     } else {
-                        -5 // EIO
+                        let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                        if let Some(comp) = comp_guard.as_mut() {
+                            let cascade_idx = (comp.windows.len() % 6) as i32;
+                            let start_x = 100 + (cascade_idx * 36);
+                            let start_y = 50 + (cascade_idx * 28);
+                            let win_id = comp.create_window(title, start_x, start_y, width, height, flags, pid);
+                            comp.composite();
+                            win_id.0 as i64
+                        } else {
+                            -5 // EIO
+                        }
                     }
                 }
                 Err(e) => -(e as i32 as i64),
@@ -803,13 +813,20 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
 
         SYS_DESTROY_WINDOW => {
             let win_id = crate::graphics::window::WindowId(arg1 as u32);
-            let mut comp_guard = crate::graphics::COMPOSITOR.lock();
-            if let Some(comp) = comp_guard.as_mut() {
-                comp.destroy_window(win_id);
-                comp.composite();
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.compositor.destroy_window(win_id);
+                shell.composite();
                 0
             } else {
-                -5
+                let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                if let Some(comp) = comp_guard.as_mut() {
+                    comp.destroy_window(win_id);
+                    comp.composite();
+                    0
+                } else {
+                    -5
+                }
             }
         }
 
@@ -821,20 +838,34 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
             if let Err(e) = validate_user_buffer(buf_ptr, buf_len, false) {
                 -(e as i32 as i64)
             } else {
-                let mut comp_guard = crate::graphics::COMPOSITOR.lock();
-                if let Some(comp) = comp_guard.as_mut() {
-                    if let Some(win) = comp.get_window_mut(win_id) {
+                let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+                if let Some(shell) = shell_guard.as_mut() {
+                    if let Some(win) = shell.compositor.get_window_mut(win_id) {
                         let user_pixels = unsafe { core::slice::from_raw_parts(buf_ptr as *const u32, buf_len / 4) };
                         let copy_count = user_pixels.len().min(win.surface.pixels.len());
                         win.surface.pixels[..copy_count].copy_from_slice(&user_pixels[..copy_count]);
-                        comp.damage_window(win_id);
-                        comp.composite();
+                        shell.compositor.damage_window(win_id);
+                        shell.composite();
                         0
                     } else {
                         -2 // ENOENT
                     }
                 } else {
-                    -5
+                    let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                    if let Some(comp) = comp_guard.as_mut() {
+                        if let Some(win) = comp.get_window_mut(win_id) {
+                            let user_pixels = unsafe { core::slice::from_raw_parts(buf_ptr as *const u32, buf_len / 4) };
+                            let copy_count = user_pixels.len().min(win.surface.pixels.len());
+                            win.surface.pixels[..copy_count].copy_from_slice(&user_pixels[..copy_count]);
+                            comp.damage_window(win_id);
+                            comp.composite();
+                            0
+                        } else {
+                            -2 // ENOENT
+                        }
+                    } else {
+                        -5
+                    }
                 }
             }
         }
@@ -846,9 +877,9 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
             if let Err(e) = validate_user_buffer(event_buf_ptr, core::mem::size_of::<crate::graphics::events::UserEvent>(), true) {
                 -(e as i32 as i64)
             } else {
-                let mut comp_guard = crate::graphics::COMPOSITOR.lock();
-                if let Some(comp) = comp_guard.as_mut() {
-                    if let Some(win) = comp.get_window_mut(win_id) {
+                let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+                if let Some(shell) = shell_guard.as_mut() {
+                    if let Some(win) = shell.compositor.get_window_mut(win_id) {
                         if let Some(ev) = win.pop_event() {
                             let user_ev: crate::graphics::events::UserEvent = ev.into();
                             unsafe { *(event_buf_ptr as *mut crate::graphics::events::UserEvent) = user_ev; }
@@ -860,7 +891,22 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                         -2 // ENOENT
                     }
                 } else {
-                    -5
+                    let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                    if let Some(comp) = comp_guard.as_mut() {
+                        if let Some(win) = comp.get_window_mut(win_id) {
+                            if let Some(ev) = win.pop_event() {
+                                let user_ev: crate::graphics::events::UserEvent = ev.into();
+                                unsafe { *(event_buf_ptr as *mut crate::graphics::events::UserEvent) = user_ev; }
+                                1 // 1 event returned
+                            } else {
+                                0 // No event
+                            }
+                        } else {
+                            -2 // ENOENT
+                        }
+                    } else {
+                        -5
+                    }
                 }
             }
         }
@@ -883,13 +929,20 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
         SYS_SET_CURSOR => {
             let x = arg1 as i32;
             let y = arg2 as i32;
-            let mut comp_guard = crate::graphics::COMPOSITOR.lock();
-            if let Some(comp) = comp_guard.as_mut() {
-                comp.on_mouse_move(x, y);
-                comp.composite();
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.on_mouse_move(x, y);
+                shell.composite();
                 0
             } else {
-                -5
+                let mut comp_guard = crate::graphics::COMPOSITOR.lock();
+                if let Some(comp) = comp_guard.as_mut() {
+                    comp.on_mouse_move(x, y);
+                    comp.composite();
+                    0
+                } else {
+                    -5
+                }
             }
         }
 

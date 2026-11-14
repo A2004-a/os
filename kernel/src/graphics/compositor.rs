@@ -21,6 +21,7 @@ pub struct Compositor {
     pub active_window: Option<WindowId>,
     pub cursor: Cursor,
     pub damage: DamageRegion,
+    pub blit_to_screen: bool,
 }
 
 impl Compositor {
@@ -40,6 +41,7 @@ impl Compositor {
             active_window: None,
             cursor: Cursor::new(),
             damage,
+            blit_to_screen: false,
         }
     }
 
@@ -276,10 +278,12 @@ impl Compositor {
         self.cursor.render_to(&mut self.backbuffer);
 
         // 4. Blit damaged regions to hardware GOP framebuffer
-        let fb = get_driver();
-        if !fb.base_ptr.is_null() {
-            for r in self.damage.rects() {
-                self.backbuffer.blit_clipped_to_raw(fb.base_ptr, fb.stride, fb.width, fb.height, *r);
+        if self.blit_to_screen {
+            let fb = get_driver();
+            if !fb.base_ptr.is_null() {
+                for r in self.damage.rects() {
+                    self.backbuffer.blit_clipped_to_raw(fb.base_ptr, fb.stride, fb.width, fb.height, *r);
+                }
             }
         }
 

@@ -225,6 +225,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL WARN] Some Windows 11 features did not pass verification.\n");
     }
 
+    // Refresh and cleanly composite the primary Windows 11 desktop after all boot tests finish
+    graphics::redraw_all();
+
     // 17. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();

@@ -31,7 +31,7 @@ pub use compositor::Compositor;
 pub use context_menu::{ContextMenu, ContextAction};
 pub use cursor::{Cursor, CursorType};
 pub use damage::DamageRegion;
-pub use desktop::{DesktopShell, DESKTOP};
+pub use desktop::{DesktopShell, DESKTOP, redraw_all};
 pub use desktop_features::{DesktopFeatures, WallpaperTheme};
 pub use events::{UserEvent, WindowEvent};
 pub use geometry::{Point, Rect, Size};
