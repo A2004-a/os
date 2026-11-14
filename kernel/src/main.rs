@@ -249,6 +249,14 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL WARN] Some Windows 11 features did not pass verification.\n");
     }
 
+    // 16f. Run Post-1.0 Milestone M11 (VirtIO-GPU, Clipboard Service, Drag-and-Drop) Verification Suite (16 Gates)
+    let m11_post10_passed = drivers::m11_tests::run_all_m11_tests();
+    if m11_post10_passed {
+        serial::write_str("[KERNEL] Milestone M11 (VirtIO-GPU, Clipboard, DND) certified with 16 passing gates!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Milestone M11 encountered anomalies.\n");
+    }
+
     // 17. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();

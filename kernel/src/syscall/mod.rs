@@ -66,6 +66,10 @@ pub const SYS_TRIGGER_RECOVERY: usize = 48;
 pub const SYS_PLAY_AUDIO: usize = 49;
 pub const SYS_LIST_BLOCK_DEVICES: usize = 50;
 pub const SYS_GET_HARDWARE_INFO: usize = 51;
+pub const SYS_CLIPBOARD_WRITE: usize = 52;
+pub const SYS_CLIPBOARD_READ: usize = 53;
+pub const SYS_CLIPBOARD_CLEAR: usize = 54;
+pub const SYS_GET_GPU_INFO: usize = 55;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1390,6 +1394,49 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                 }
                 Err(e) => -(e as i32 as i64),
             }
+        }
+
+        SYS_CLIPBOARD_WRITE => {
+            let format_u32 = arg1 as u32;
+            let buf_ptr = arg2;
+            let len = arg3 as usize;
+
+            if let Err(e) = validate::validate_user_buffer(buf_ptr, len, false) {
+                -(e as i32 as i64)
+            } else {
+                let bytes = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };
+                let current_pid = crate::process::get_current_process_mut().map(|p| p.id.0).unwrap_or(0);
+                match crate::ipc::clipboard::write_clipboard(current_pid, format_u32, bytes) {
+                    Ok(seq) => seq as i64,
+                    Err(err) => err as i64,
+                }
+            }
+        }
+
+        SYS_CLIPBOARD_READ => {
+            let format_u32 = arg1 as u32;
+            let buf_ptr = arg2;
+            let max_len = arg3 as usize;
+
+            if let Err(e) = validate::validate_user_buffer(buf_ptr, max_len, true) {
+                -(e as i32 as i64)
+            } else {
+                let out_slice = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, max_len) };
+                match crate::ipc::clipboard::read_clipboard(format_u32, out_slice) {
+                    Ok((bytes_read, _seq)) => bytes_read as i64,
+                    Err(err) => err as i64,
+                }
+            }
+        }
+
+        SYS_CLIPBOARD_CLEAR => {
+            let current_pid = crate::process::get_current_process_mut().map(|p| p.id.0).unwrap_or(0);
+            crate::ipc::clipboard::CLIPBOARD.lock().clear(current_pid) as i64
+        }
+
+        SYS_GET_GPU_INFO => {
+            let gpu = crate::drivers::virtio_gpu::get_gpu_driver();
+            if gpu.is_hardware { 1 } else { 0 }
         }
 
         _ => {

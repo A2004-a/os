@@ -85,6 +85,7 @@ pub struct DesktopShell {
     pub terminal_line_count: usize,
     pub terminal_input: [u8; 64],
     pub terminal_input_len: usize,
+    pub dnd: super::dnd::DndEngine,
 }
 
 impl DesktopShell {
@@ -123,6 +124,7 @@ impl DesktopShell {
             terminal_line_count: 0,
             terminal_input: [0u8; 64],
             terminal_input_len: 0,
+            dnd: super::dnd::DndEngine::new(),
         }
     }
 
@@ -412,6 +414,14 @@ impl DesktopShell {
             }
         }
 
+        if self.dnd.is_dragging() || self.dnd.phase == super::dnd::DndPhase::Potential {
+            let prev_ghost = self.dnd.ghost_rect();
+            if self.dnd.on_mouse_move(Point::new(x, y)) {
+                self.compositor.damage.add_rect(prev_ghost);
+                self.compositor.damage.add_rect(self.dnd.ghost_rect());
+            }
+        }
+
         self.compositor.on_mouse_move(x, y);
     }
 
@@ -424,6 +434,21 @@ impl DesktopShell {
         }
         if let Some(mr) = self.features.end_marquee() {
             self.compositor.damage.add_rect(mr);
+        }
+        if self.dnd.is_dragging() {
+            let prev_ghost = self.dnd.ghost_rect();
+            self.compositor.damage.add_rect(prev_ghost);
+            let target_win = self.compositor.window_at(x, y);
+            if let Some(_payload) = self.dnd.on_mouse_up(target_win) {
+                if let Some(tw) = target_win {
+                    if let Some(win) = self.compositor.get_window(tw) {
+                        let r = win.rect;
+                        self.compositor.damage.add_rect(r);
+                    }
+                }
+            }
+        } else {
+            self.dnd.cancel();
         }
         self.compositor.on_mouse_up(x, y, button);
     }
@@ -438,6 +463,17 @@ impl DesktopShell {
     }
 
     pub fn on_key_event(&mut self, scancode: u8, char_code: Option<char>, pressed: bool, _shift: bool, _ctrl: bool, alt: bool) {
+        // Cancel active drag-and-drop on Escape (0x01)
+        if scancode == 0x01 && pressed {
+            if self.dnd.is_dragging() {
+                let ghost = self.dnd.ghost_rect();
+                self.compositor.damage.add_rect(ghost);
+                self.dnd.cancel();
+                self.composite();
+                return;
+            }
+        }
+
         // Track Windows (Super/GUI) key: Scancode 0x5B (Make) / 0xDB (Break)
         if scancode == 0x5B {
             self.win_key_down = true;
@@ -712,15 +748,28 @@ impl DesktopShell {
             self.context_menu.render(&mut self.compositor.backbuffer);
         }
 
+        // 5f. Render DND Drag Ghost (if dragging)
+        if self.dnd.is_dragging() {
+            self.dnd.render_ghost(&mut self.compositor.backbuffer);
+        }
+
         // 6. Render Mouse Cursor Overlay
         self.compositor.cursor.render_to(&mut self.compositor.backbuffer);
 
-        // 7. Flush changed backbuffer regions to hardware GOP framebuffer
+        // 7. Flush changed backbuffer regions to hardware GOP framebuffer & VirtIO-GPU
         if self.blit_to_screen {
             let fb = get_driver();
             if !fb.base_ptr.is_null() {
                 for r in self.compositor.damage.rects() {
                     self.compositor.backbuffer.blit_clipped_to_raw(fb.base_ptr, fb.stride, fb.width, fb.height, *r);
+                }
+            }
+
+            let gpu = crate::drivers::virtio_gpu::get_gpu_driver();
+            if gpu.scanout_bound {
+                for r in self.compositor.damage.rects() {
+                    let _ = gpu.transfer_to_host_2d(gpu.primary_resource_id, r.x.max(0) as u32, r.y.max(0) as u32, r.width, r.height);
+                    let _ = gpu.resource_flush(gpu.primary_resource_id, r.x.max(0) as u32, r.y.max(0) as u32, r.width, r.height);
                 }
             }
         }

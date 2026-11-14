@@ -2,7 +2,30 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
-## [1.1.0] - 2026-11-14 — Windows 11 Desktop Features & 105 Verification Gates
+## [1.2.0] - 2026-11-14 — Post-1.0 Milestone M11 (VirtIO-GPU, System Clipboard, Drag and Drop)
+
+### Added
+- **VirtIO-GPU 2D Display Driver (`kernel/src/drivers/virtio_gpu.rs`):**
+  - Modern PCI ID (`0x1AF4:0x1050`) and legacy fallback (`0x1010`) device enumeration.
+  - VirtIO split control queue (`ctrlq`) and cursor queue (`cursorq`) ring initialization.
+  - 2D resource allocation (`VIRTIO_GPU_CMD_RESOURCE_CREATE_2D`) with `B8G8R8A8_UNORM` pixel format.
+  - Backing memory physical page allocation and attachment (`VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING`).
+  - Scanout 0 primary display pipeline binding (`VIRTIO_GPU_CMD_SET_SCANOUT`).
+  - Synchronous 2D rectangle host transfer (`VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D`) and presentation flush (`VIRTIO_GPU_CMD_RESOURCE_FLUSH`).
+  - Compositor integration with damage tracking and UEFI GOP fallback transparency.
+- **System Clipboard Service (`kernel/src/ipc/clipboard.rs`):**
+  - Thread-safe, cross-process clipboard daemon with monotonic sequence counter and ownership arbitration.
+  - Typed MIME formats: `text/plain` (1), `text/uri-list` (2), `image/x-raw` (3), `custom` (4).
+  - Hard 64 KiB buffer clamp preventing kernel memory exhaustion.
+  - Capability-checked Ring 3 syscalls: `SYS_CLIPBOARD_WRITE` (52), `SYS_CLIPBOARD_READ` (53), and `SYS_CLIPBOARD_CLEAR` (54).
+- **Desktop Drag-and-Drop Subsystem (`kernel/src/graphics/dnd.rs`):**
+  - Interactive gesture tracking with 4px displacement threshold.
+  - Typed payloads: `File`, `Text`, and `WindowTab`.
+  - Translucent visual drag ghost rendering in desktop compositor with real-time cursor coordinate tracking.
+  - Target window hit-testing and drop acceptance.
+  - Escape key (`0x01`) and invalid zone drop cancellation lifecycle.
+- **Milestone M11 Verification Suite (`kernel/src/drivers/m11_tests.rs`):**
+  - 16 certified automated test gates covering GPU, Clipboard, and DND, passing 16/16 with 0 errors.
 
 ### Added
 - **Windows 11-Class Desktop Subsystems & Components:**

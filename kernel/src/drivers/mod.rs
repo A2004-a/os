@@ -19,8 +19,10 @@ pub mod tests;
 pub mod timer;
 pub mod usb_hid;
 pub mod virtio_block;
+pub mod virtio_gpu;
 pub mod virtio_net;
 pub mod xhci;
+pub mod m11_tests;
 
 use crate::boot::BootInfo;
 

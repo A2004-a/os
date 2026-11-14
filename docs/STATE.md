@@ -34,8 +34,8 @@ Following the mandatory sequence in Section 21:
 
 | Target Milestone | Scope Description | Current Status | Notes |
 | :--- | :--- | :---: | :--- |
-| **M11** | **virtio-gpu display, clipboard service, drag and drop** | **TARGET** | Next active milestone to implement. |
-| **M12** | userspace threads, futex syscall, dynamic linking (ELF shared libs, loader) | QUEUED | Blocked on M11 completion. |
+| **M11** | **virtio-gpu display, clipboard service, drag and drop** | **DONE** | 16/16 gates certified in `docs/evidence/M11.md`. |
+| **M12** | userspace threads, futex syscall, dynamic linking (ELF shared libs, loader) | **TARGET** | Next active milestone to implement. |
 | **M13** | musl libc port + POSIX layer (files, processes, pipes, sockets, threads, time) | QUEUED | Blocked on M12 completion. |
 | **M14** | busybox-style coreutils, MicroPython, WASM runtime (wasmi) for sandboxed apps | QUEUED | Blocked on M13 completion. |
 | **M15** | USB xHCI + USB HID, AHCI/SATA, NVMe (behind the existing block layer) | QUEUED | Drivers exist in kernel; requires block layer unification. |
@@ -49,6 +49,6 @@ Following the mandatory sequence in Section 21:
 
 ## 3. Current Target Milestone
 
-- **Milestone:** **M11**
-- **Goal:** Implement `virtio-gpu` hardware accelerated display device, global system clipboard service with cross-process IPC sharing, and desktop drag-and-drop mechanics.
-- **Pre-conditions:** M0–M10 verified DONE in `docs/evidence/baseline.md`.
+- **Milestone:** **M12**
+- **Goal:** Userspace threads, futex syscall, dynamic linking (ELF shared libs, loader).
+- **Pre-conditions:** M0–M11 verified DONE in `docs/evidence/M11.md`.

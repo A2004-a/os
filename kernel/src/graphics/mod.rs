@@ -10,6 +10,7 @@ pub mod cursor;
 pub mod damage;
 pub mod desktop;
 pub mod desktop_features;
+pub mod dnd;
 pub mod events;
 pub mod font;
 pub mod geometry;

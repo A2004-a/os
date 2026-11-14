@@ -1,6 +1,8 @@
 //! NovaOS Apex — Inter-Process Communication (IPC) Subsystem
 //! Implements structured message passing between Ring 3 processes with length checks and mailbox queues.
 
+pub mod clipboard;
+
 extern crate alloc;
 use alloc::vec::Vec;
 use crate::scheduler::sync::SpinLock;
