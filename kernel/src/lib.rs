@@ -15,6 +15,7 @@ pub mod graphics;
 pub mod interrupts;
 pub mod ipc;
 pub mod memory;
+pub mod net;
 pub mod object;
 pub mod process;
 pub mod scheduler;

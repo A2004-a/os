@@ -1,6 +1,10 @@
 //! NovaOS Security Model & Capability Handles
 //! Enforces least-privilege resource access and userland pointer validation
 
+pub mod user;
+
+pub use user::{UserAccount, UserManager};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CapabilityFlags(pub u32);
 

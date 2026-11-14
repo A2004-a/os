@@ -7,6 +7,7 @@ pub mod ps2_keyboard;
 pub mod ps2_mouse;
 pub mod serial;
 pub mod vga;
+pub mod virtio_net;
 
 pub fn init(fb_info: Option<crate::boot::info::FramebufferInfo>) {
     serial::init();
