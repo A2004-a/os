@@ -5,6 +5,16 @@ use core::arch::asm;
 pub struct ControlRegisters;
 
 impl ControlRegisters {
+    /// Read CR0 register (holds control bits PE, MP, EM, TS, ET, NE, WP, AM, NW, CD, PG)
+    #[inline]
+    pub fn read_cr0() -> u64 {
+        let value: u64;
+        unsafe {
+            asm!("mov {}, cr0", out(reg) value, options(nomem, nostack, preserves_flags));
+        }
+        value
+    }
+
     /// Read CR2 register (holds linear faulting address on Page Fault)
     #[inline]
     pub fn read_cr2() -> u64 {

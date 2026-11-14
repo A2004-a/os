@@ -64,7 +64,10 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // Run Milestone M11 Hardware Expansion (AHCI, NVMe, xHCI, Audio) verification suite
     novaos_kernel::drivers::hardware_test::run_hardware_diagnostics();
 
-    println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
+    // Run Milestone M12 Production Hardening, System Fuzzing & Hardware Conformance suite
+    novaos_kernel::arch::x86_64::fuzz_test::run_fuzz_diagnostics();
+
+    println!("NovaOS Bare-Metal Operating System v1.0.0-baremetal [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");
 
     println!("[CPU] Features: {:?}", novaos_kernel::cpu::detect_features());

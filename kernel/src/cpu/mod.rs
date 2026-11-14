@@ -1,5 +1,7 @@
 //! NovaOS CPU Feature Discovery & Model Detection
 
+pub mod conformance;
+
 use core::arch::x86_64::__cpuid;
 
 #[derive(Debug, Clone, Copy)]
