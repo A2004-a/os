@@ -250,7 +250,21 @@ pub extern "C" fn handle_exception(ctx: &mut ExceptionContext) {
     serial::write_str("\n  R13: 0x"); print_hex_u64(ctx.r13);
     serial::write_str("  R14: 0x"); print_hex_u64(ctx.r14);
     serial::write_str("  R15: 0x"); print_hex_u64(ctx.r15);
-    serial::write_str("\n\n[HALT] System halted safely. Zero silent resets permitted.\n");
+
+    serial::write_str("\n\nStack Dump (RSP: 0x");
+    print_hex_u64(ctx.rsp);
+    serial::write_str("):\n");
+    let sp = ctx.rsp as *const u64;
+    for i in 0..48 {
+        serial::write_str("  [+0x");
+        print_hex_u64((i * 8) as u64);
+        serial::write_str("] 0x");
+        let val = unsafe { core::ptr::read_unaligned(sp.add(i)) };
+        print_hex_u64(val);
+        serial::write_str("\n");
+    }
+
+    serial::write_str("\n[HALT] System halted safely. Zero silent resets permitted.\n");
 
     super::instructions::hlt();
 }

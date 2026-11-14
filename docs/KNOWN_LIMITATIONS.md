@@ -6,7 +6,7 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ---
 
-## Current Status: Milestone 9 (Core Native Applications)
+## Current Status: Milestone 10 (App Platform, Installer & Recovery)
 
 ### 1. CPU, Scheduling & Synchronization
 - **Multicore (SMP):** Single-core execution only (Bootstrap Processor / BSP). Multi-core scheduling across APs is scheduled for Milestone 11.
@@ -65,4 +65,13 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 - **Nova Settings (`userland/apps/src/settings.rs`):** Categorized configuration center with 6 categories (System, Display, Network, Users, Security, Storage), reversible theme toggling (Dark Mica <-> Slate), network gateway ping probe, and security profile inspector.
 - **Nova Package Manager (`userland/apps/src/packages.rs`):** Signed `.nvp` package catalog with filter tabs (All, Installed, Available), Ed25519 digital signature trust verification, capability permissions inspector, and install/uninstall toggle management.
 - **Nova Terminal (`userland/apps/src/terminal.rs`):** Graphical terminal window running on the window server with 8x16 monospace font, scrollable history buffer, prompt `apex@novaos:~$ `, keyboard typing, and built-in command dispatcher (`help`, `uname`, `whoami`, `uptime`, `clear`).
-- **Next Milestone Target:** App Platform, Signed `.nvp` Packages, Partitioning & OS Installer are scheduled for **Milestone 10**.
+
+### 9. App Platform, Installer & Recovery Subsystem (Milestone 10)
+- **Signed Nova Package (`.nvp`) Format:** Complete binary archive specification with 192-byte header, magic `NOVA_NVP\0`, capability bitmask (`CAP_FS_READ`, `CAP_FS_WRITE`, `CAP_NET_SOCKET`, `CAP_PROC_SPAWN`, etc.), FIPS 180-4 SHA-256 integrity digest, HMAC-SHA256 digital signature, and multi-file payload directory.
+- **Package Manager Engine:** Transactional staging in `/var/pkg/stage`, capability sandboxing, privilege elevation enforcement (root-only installation for system packages), atomic manifest commit in `/var/pkg/registry`, automatic rollback backup generation, and clean package uninstallation.
+- **GUID Partition Table (GPT) & Protective MBR:** Complete UEFI 2.10 partition management engine with Protective MBR at LBA 0 (type `0xEE`, `0xAA55` signature), Primary GPT Header at LBA 1, Backup GPT Header at last sector, 128 partition entries (LBAs 2..33), header CRC32, partition array CRC32, and standard GUIDs (ESP FAT32, NovaOS System, NovaOS Data NovaFS, NovaOS Recovery).
+- **Automated OS Installer (`OsInstaller`):** Automated bare-metal installation pipeline discovering storage devices, partitioning disks into standard 4-volume layout (ESP + System + Data + Recovery), formatting boot filesystems, deploying signed base packages, provisioning initial admin user account (`apex`), and updating boot configuration.
+- **System Recovery & Diagnostics (`RecoveryManager`):** Boot attempt counter tracking consecutive startup failures, automated 3-strike threshold triggering `RecoveryState::SafeMode`, automated rollback to previous stable snapshot, system snapshot management (`create_snapshot`, `rollback_to_snapshot`), and NovaFS superblock integrity scrubber (`scrub_novafs`).
+- **System Calls 44..48:** Five new syscalls wired: `SYS_VERIFY_PACKAGE` (44), `SYS_INSTALL_PACKAGE` (45), `SYS_UNINSTALL_PACKAGE` (46), `SYS_GET_PARTITIONS` (47), and `SYS_TRIGGER_RECOVERY` (48).
+- **Native Userland Applications:** `NovaInstallerApp` (setup wizard with 4-volume partition bar and live deployment tracking) and `NovaRecoveryApp` (recovery center with boot counter diagnostics, snapshot cards, and one-click scrubber/rollback/safe-mode controls).
+- **Next Milestone Target:** Hardware Expansion (AHCI SATA 1.3, NVMe 1.4, USB 3.0 xHCI & HID, Intel HD Audio) is scheduled for **Milestone 11**.

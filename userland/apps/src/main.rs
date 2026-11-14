@@ -11,14 +11,18 @@ use core::ptr::addr_of_mut;
 use novaos_apex_runtime::*;
 
 mod files;
+mod installer;
 mod monitor;
 mod packages;
+mod recovery;
 mod settings;
 mod terminal;
 
 use files::NovaFilesApp;
+use installer::NovaInstallerApp;
 use monitor::NovaMonitorApp;
 use packages::NovaPackagesApp;
+use recovery::NovaRecoveryApp;
 use settings::NovaSettingsApp;
 use terminal::NovaTerminalApp;
 
@@ -77,7 +81,23 @@ pub extern "C" fn _start() -> ! {
         print("[APPS] [PASS] Nova Terminal window mapped and composited.\n");
     }
 
-    print("\n[APPS SUCCESS] All 5 core native applications operational!\n");
+    // 6. Initialize Nova OS Installer
+    let inst_app = NovaInstallerApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    inst_app.render(buf, APP_WIDTH);
+    if let Ok(w_inst) = create_window("NovaOS Setup Wizard", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_inst, &buf[..]);
+        print("[APPS] [PASS] NovaOS Installer window mapped and composited.\n");
+    }
+
+    // 7. Initialize Nova Recovery & Diagnostics
+    let rec_app = NovaRecoveryApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    rec_app.render(buf, APP_WIDTH);
+    if let Ok(w_rec) = create_window("Nova Recovery Center", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_rec, &buf[..]);
+        print("[APPS] [PASS] Nova Recovery Center window mapped and composited.\n");
+    }
+
+    print("\n[APPS SUCCESS] All 7 core native applications operational!\n");
     exit(0);
 }
 

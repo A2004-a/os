@@ -2,6 +2,51 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.10.0] - 2026-11-14 — Milestone 10 (App Platform, Installer & Recovery)
+
+### Added
+- **Storage & Partition Subsystem (`kernel/src/storage/`):**
+  - Standard IEEE 802.3 CRC32 implementation (`0xEDB8_8320`) with test vector verification.
+  - Complete UEFI 2.10 GUID Partition Table (GPT) engine:
+    - Protective MBR at LBA 0 (type `0xEE`, `0xAA55` signature).
+    - Primary GPT Header at LBA 1, Backup GPT Header at disk end.
+    - 128 partition entries (LBAs 2..33) with UTF-16LE partition names and standard type GUIDs (ESP FAT32, NovaOS System, NovaOS Data NovaFS, NovaOS Recovery).
+    - Header and Partition Array CRC32 checksum verification.
+  - `PartitionDevice` block slice mapper translating logical partition sectors to physical device LBAs with strict boundary bounds-checking and write protection.
+- **Signed Nova Package (`.nvp`) Subsystem (`kernel/src/package/`):**
+  - Standalone FIPS 180-4 SHA-256 implementation with known test vector verification.
+  - HMAC-SHA256 digital signature generator and verifier against `SYSTEM_ROOT_PUBKEY`.
+  - Signed Nova Package binary format (`NvpHeader` 192 bytes, magic `NOVA_NVP\0`, capability bitmask, digest, offsets, signature).
+  - Transactional package manager (`PackageManager`):
+    - Staging in `/var/pkg/stage`.
+    - Capability permission enforcement (`CAP_FS_READ`, `CAP_FS_WRITE`, `CAP_NET_SOCKET`, `CAP_PROC_SPAWN`, etc.) with root-only elevation controls.
+    - Atomic manifest commit to `/var/pkg/registry`.
+    - Automatic backup generation and transactional rollback (`rollback_package`).
+    - Clean package uninstallation.
+- **Automated OS Installer (`kernel/src/installer/`):**
+  - Storage block device discovery and suitability evaluation.
+  - 4-partition automated GPT partitioning pipeline (ESP + System Read-Only + NovaFS Data + Recovery).
+  - Filesystem bootstrap (ESP marker, System image header, NovaFS superblock).
+  - Signed package deployment (base `coreutils.nvp` deployment and registration).
+  - User profile provisioning (`apex` user and `/users/apex/` home directory).
+  - 100% progress tracking across 8 distinct deployment stages.
+- **System Recovery & Diagnostics Subsystem (`kernel/src/recovery/`):**
+  - Boot failure counter tracking consecutive boots with 3-strike threshold.
+  - Automatic `RecoveryState::SafeMode` activation and rollback trigger upon 3 consecutive boot failures.
+  - Automated NovaFS superblock integrity scrubber (`scrub_novafs`) detecting corruption and restoring clean flags.
+  - Snapshot engine (`create_snapshot`, `rollback_to_snapshot`, `rollback_to_latest_snapshot`) preserving system packages and configuration.
+- **System Call Primitives 44..48 (`kernel/src/syscall/mod.rs` & `userland/runtime/`):**
+  - `SYS_VERIFY_PACKAGE (44)`: Validates `.nvp` header magic, SHA-256 digest, digital signature, and permissions.
+  - `SYS_INSTALL_PACKAGE (45)`: Stages and atomically commits `.nvp` package with UID verification.
+  - `SYS_UNINSTALL_PACKAGE (46)`: Uninstalls package from registry with privilege checks.
+  - `SYS_GET_PARTITIONS (47)`: Queries active GPT partition table entries from disk into user memory.
+  - `SYS_TRIGGER_RECOVERY (48)`: Executes manual recovery mode, NovaFS scrubber, or snapshot rollback.
+- **Userland Applications Suite Expansion (`userland/apps/`):**
+  - `NovaInstallerApp` (`userland/apps/src/installer.rs`): Windows 11-style setup wizard displaying target disk card, 4-partition visual layout bar, deployment progress, and buttons.
+  - `NovaRecoveryApp` (`userland/apps/src/recovery.rs`): Recovery center displaying boot monitor card, snapshot list, health status banner, and scrubber / rollback / safe-mode action controls.
+- **Milestone 10 Automated Verification Suite (`kernel/src/recovery/tests.rs`):**
+  - 6 comprehensive test suites proving NVP format & crypto signatures, capability sandboxing, transactional package rollback, GPT headers & CRC32, automated OS installer, and recovery boot counter 3-strike trigger with NovaFS scrubber.
+
 ## [0.9.0] - 2026-11-14 — Milestone 9 (Core Native Applications)
 
 ### Added

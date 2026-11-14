@@ -58,6 +58,34 @@ pub const SYS_TOGGLE_LAUNCHER: usize = 40;
 pub const SYS_GET_SYS_STATS: usize = 41;
 pub const SYS_LIST_PROCESSES: usize = 42;
 pub const SYS_KILL_PROCESS: usize = 43;
+pub const SYS_VERIFY_PACKAGE: usize = 44;
+pub const SYS_INSTALL_PACKAGE: usize = 45;
+pub const SYS_UNINSTALL_PACKAGE: usize = 46;
+pub const SYS_GET_PARTITIONS: usize = 47;
+pub const SYS_TRIGGER_RECOVERY: usize = 48;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PackageVerifyResult {
+    pub valid: u32,
+    pub name: [u8; 32],
+    pub version: [u8; 16],
+    pub publisher: [u8; 32],
+    pub capabilities: u32,
+    pub payload_size: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PartitionInfo {
+    pub id: u32,
+    pub type_guid: [u8; 16],
+    pub starting_lba: u64,
+    pub ending_lba: u64,
+    pub size_sectors: u64,
+    pub attributes: u64,
+    pub name: [u8; 36],
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -980,6 +1008,182 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
             } else {
                 crate::process::terminate_process(crate::process::ProcessId(target_pid), -9);
                 0
+            }
+        }
+
+        SYS_VERIFY_PACKAGE => {
+            let pkg_addr = arg1;
+            let pkg_len = arg2 as usize;
+            let out_addr = arg3;
+
+            let val_pkg = validate::validate_user_buffer(pkg_addr, pkg_len, false);
+            let val_out = validate::validate_user_buffer(out_addr, core::mem::size_of::<PackageVerifyResult>(), true);
+
+            match (val_pkg, val_out) {
+                (Ok(()), Ok(())) => {
+                    let slice = unsafe { core::slice::from_raw_parts(pkg_addr as *const u8, pkg_len) };
+                    let out_ptr = out_addr as *mut PackageVerifyResult;
+                    match crate::package::format::verify_nvp(slice, &crate::package::crypto::SYSTEM_ROOT_PUBKEY) {
+                        Ok(hdr) => {
+                            let result = PackageVerifyResult {
+                                valid: 1,
+                                name: hdr.name,
+                                version: hdr.version,
+                                publisher: hdr.publisher,
+                                capabilities: hdr.capabilities,
+                                payload_size: hdr.payload_size,
+                            };
+                            unsafe { core::ptr::write_unaligned(out_ptr, result) };
+                            0
+                        }
+                        Err(_) => {
+                            let result = PackageVerifyResult {
+                                valid: 0,
+                                name: [0u8; 32],
+                                version: [0u8; 16],
+                                publisher: [0u8; 32],
+                                capabilities: 0,
+                                payload_size: 0,
+                            };
+                            unsafe { core::ptr::write_unaligned(out_ptr, result) };
+                            -1
+                        }
+                    }
+                }
+                _ => -14, // EFAULT
+            }
+        }
+
+        SYS_INSTALL_PACKAGE => {
+            let pkg_addr = arg1;
+            let pkg_len = arg2 as usize;
+            let _flags = arg3 as u32;
+
+            match validate::validate_user_buffer(pkg_addr, pkg_len, false) {
+                Ok(()) => {
+                    let slice = unsafe { core::slice::from_raw_parts(pkg_addr as *const u8, pkg_len) };
+                    let uid = if let Some(proc) = crate::process::get_current_process_mut() {
+                        proc.credentials.uid.0
+                    } else {
+                        0
+                    };
+                    let mgr = crate::package::manager::get_manager();
+                    match mgr.stage_package(slice, uid) {
+                        Ok(stage_id) => {
+                            if mgr.commit_stage(stage_id).is_ok() {
+                                0
+                            } else {
+                                -5 // EIO
+                            }
+                        }
+                        Err(crate::package::format::PackageError::PermissionDenied) => -1, // EPERM
+                        Err(_) => -22, // EINVAL
+                    }
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_UNINSTALL_PACKAGE => {
+            let name_addr = arg1;
+            let name_len = arg2 as usize;
+
+            match validate::validate_user_string(name_addr, name_len) {
+                Ok(name_str) => {
+                    let uid = if let Some(proc) = crate::process::get_current_process_mut() {
+                        proc.credentials.uid.0
+                    } else {
+                        0
+                    };
+                    let mgr = crate::package::manager::get_manager();
+                    match mgr.uninstall_package(name_str, uid) {
+                        Ok(()) => 0,
+                        Err(crate::package::format::PackageError::PermissionDenied) => -1,
+                        Err(_) => -2, // ENOENT
+                    }
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_GET_PARTITIONS => {
+            let _dev_addr = arg1;
+            let _dev_len = arg2 as usize;
+            let buf_addr = arg3;
+            let max_count = arg4 as usize;
+
+            let req_size = max_count.saturating_mul(core::mem::size_of::<PartitionInfo>());
+            match validate::validate_user_buffer(buf_addr, req_size, true) {
+                Ok(()) => {
+                    let mut count = 0;
+                    let buf_ptr = buf_addr as *mut PartitionInfo;
+                    // Read GPT entries from sectors 2..9
+                    let mut sector_buf = [0u8; 512];
+                    for s in 0..8 {
+                        if crate::drivers::virtio_block::read_sector(2 + s as u64, &mut sector_buf).is_ok() {
+                            for e in 0..4 { // 4 entries of 128 bytes per 512-byte sector
+                                if count >= max_count {
+                                    break;
+                                }
+                                let entry_slice: &[u8; 128] = sector_buf[e * 128..(e + 1) * 128].try_into().unwrap();
+                                if let Some(entry) = crate::storage::gpt::parse_partition_entry(entry_slice) {
+                                    let mut p_name = [0u8; 36];
+                                    let _ = entry.get_name_ascii(&mut p_name);
+                                    let info = PartitionInfo {
+                                        id: count as u32,
+                                        type_guid: entry.type_guid,
+                                        starting_lba: entry.starting_lba,
+                                        ending_lba: entry.ending_lba,
+                                        size_sectors: entry.size_sectors(),
+                                        attributes: entry.attributes,
+                                        name: p_name,
+                                    };
+                                    unsafe {
+                                        core::ptr::write_unaligned(buf_ptr.add(count), info);
+                                    }
+                                    count += 1;
+                                }
+                            }
+                        }
+                    }
+                    count as i64
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_TRIGGER_RECOVERY => {
+            let reason_code = arg1 as u32;
+            let action_param = arg2 as u32;
+
+            let is_root = if let Some(proc) = crate::process::get_current_process_mut() {
+                proc.credentials.is_root()
+            } else {
+                true
+            };
+
+            if !is_root {
+                -1 // EPERM
+            } else {
+                let rec = crate::recovery::get_recovery();
+                match reason_code {
+                    1 => {
+                        rec.trigger_recovery(crate::recovery::RecoveryReason::UserManualTrigger);
+                        0
+                    }
+                    2 => {
+                        let _report = rec.scrub_novafs();
+                        0
+                    }
+                    3 => {
+                        if rec.rollback_to_snapshot(action_param).is_ok() {
+                            0
+                        } else {
+                            -1
+                        }
+                    }
+                    _ => -22, // EINVAL
+                }
             }
         }
 

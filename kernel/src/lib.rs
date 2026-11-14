@@ -10,14 +10,18 @@ pub mod boot;
 pub mod drivers;
 pub mod fs;
 pub mod graphics;
+pub mod installer;
 pub mod ipc;
 pub mod memory;
 pub mod network;
 pub mod objects;
+pub mod package;
 pub mod panic;
 pub mod process;
+pub mod recovery;
 pub mod scheduler;
 pub mod security;
+pub mod storage;
 pub mod syscall;
 
 pub mod serial {

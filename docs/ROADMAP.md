@@ -12,6 +12,6 @@
 | **M7** | **Graphics, Window Server & NovaUI** | 2D software compositor, alpha blending, window hierarchy, Z-order, widgets | **Completed** |
 | **M8** | **Nova Desktop Shell** | Nova Bar taskbar, Nova Launcher, Snap Assist engine, Virtual Workspaces 1..4 | **Completed** |
 | **M9** | **Core Native Applications** | Nova Files, Nova System Monitor, Nova Settings, Package Manager | **Completed** |
-| **M10** | **App Platform, Installer & Recovery** | Signed .nvp packages, GPT disk partitioner, automated OS installer, recovery rollback | **Active Target** |
-| **M11** | **Hardware Expansion** | AHCI SATA 1.3, NVMe 1.4, USB 3.0 xHCI & HID, Intel HD Audio | Scheduled |
+| **M10** | **App Platform, Installer & Recovery** | Signed .nvp packages, GPT disk partitioner, automated OS installer, recovery rollback | **Completed** |
+| **M11** | **Hardware Expansion** | AHCI SATA 1.3, NVMe 1.4, USB 3.0 xHCI & HID, Intel HD Audio | **Active Target** |
 | **M12** | **Hardening & Release Engineering** | Syscall & network fuzzing, hardware conformance certification, release ISO | Scheduled |

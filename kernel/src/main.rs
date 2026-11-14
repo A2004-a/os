@@ -11,11 +11,14 @@ use novaos_apex_kernel::boot::BootInfo;
 use novaos_apex_kernel::drivers;
 use novaos_apex_kernel::fs;
 use novaos_apex_kernel::graphics;
+use novaos_apex_kernel::installer;
 use novaos_apex_kernel::ipc;
 use novaos_apex_kernel::memory;
 use novaos_apex_kernel::network;
 use novaos_apex_kernel::objects;
+use novaos_apex_kernel::package;
 use novaos_apex_kernel::process;
+use novaos_apex_kernel::recovery;
 use novaos_apex_kernel::scheduler;
 use novaos_apex_kernel::serial;
 use novaos_apex_kernel::syscall;
@@ -177,7 +180,23 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 9 WARN] Core native applications encountered anomalies.\n");
     }
 
-    // 14. Initialize Scheduler & IPC Subsystems
+    // 14. Initialize Milestone 10 App Platform, Installer & Recovery
+    serial::write_str("\n[KERNEL] Initializing Milestone 10 App Platform, Installer & Recovery Subsystem...\n");
+    package::init();
+    installer::init();
+    recovery::init();
+    recovery::get_recovery().record_boot_start();
+
+    let m10_passed = recovery::tests::run_m10_verification_suite();
+    if m10_passed {
+        serial::write_str("\n[MILESTONE 10 VERIFIED] Signed .nvp packages, GPT partitioner,\n");
+        serial::write_str("                        automated OS installer, and recovery rollback confirmed operational!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 10 WARN] Milestone 10 encountered anomalies.\n");
+    }
+    recovery::get_recovery().record_boot_success();
+
+    // 15. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 

@@ -177,7 +177,9 @@ pub fn init() {
     heap.dealloc_count = 0;
 
     serial::write_str("[HEAP] Kernel dynamic allocator initialized:\n");
-    serial::write_str("  Total Heap Buffer: ");
+    serial::write_str("  Heap Base: 0x");
+    print_hex_u64(heap.base_ptr as u64);
+    serial::write_str("\n  Total Heap Buffer: ");
     print_u64((heap.size / 1024) as u64);
     serial::write_str(" KiB (Canary guards active)\n");
 }
@@ -204,6 +206,24 @@ fn print_u64(mut n: u64) {
     while n > 0 {
         buf[i] = b'0' + (n % 10) as u8;
         n /= 10;
+        i += 1;
+    }
+    for j in (0..i).rev() {
+        serial::write_byte(buf[j]);
+    }
+}
+
+fn print_hex_u64(mut n: u64) {
+    if n == 0 {
+        serial::write_str("0");
+        return;
+    }
+    let hex_chars = b"0123456789ABCDEF";
+    let mut buf = [0u8; 16];
+    let mut i = 0;
+    while n > 0 {
+        buf[i] = hex_chars[(n & 0x0F) as usize];
+        n >>= 4;
         i += 1;
     }
     for j in (0..i).rev() {

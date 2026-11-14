@@ -48,6 +48,34 @@ pub const SYS_TOGGLE_LAUNCHER: usize = 40;
 pub const SYS_GET_SYS_STATS: usize = 41;
 pub const SYS_LIST_PROCESSES: usize = 42;
 pub const SYS_KILL_PROCESS: usize = 43;
+pub const SYS_VERIFY_PACKAGE: usize = 44;
+pub const SYS_INSTALL_PACKAGE: usize = 45;
+pub const SYS_UNINSTALL_PACKAGE: usize = 46;
+pub const SYS_GET_PARTITIONS: usize = 47;
+pub const SYS_TRIGGER_RECOVERY: usize = 48;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PackageVerifyResult {
+    pub valid: u32,
+    pub name: [u8; 32],
+    pub version: [u8; 16],
+    pub publisher: [u8; 32],
+    pub capabilities: u32,
+    pub payload_size: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PartitionInfo {
+    pub id: u32,
+    pub type_guid: [u8; 16],
+    pub starting_lba: u64,
+    pub ending_lba: u64,
+    pub size_sectors: u64,
+    pub attributes: u64,
+    pub name: [u8; 36],
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -833,6 +861,90 @@ pub fn list_processes(out: &mut [ProcessInfo]) -> Result<usize, i32> {
 // 44. kill_process
 pub fn kill_process(pid: u64) -> Result<(), i32> {
     let ret = unsafe { syscall1(SYS_KILL_PROCESS, pid) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 45. verify_package
+pub fn verify_package(pkg_data: &[u8], result: &mut PackageVerifyResult) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall3(
+            SYS_VERIFY_PACKAGE,
+            pkg_data.as_ptr() as u64,
+            pkg_data.len() as u64,
+            result as *mut PackageVerifyResult as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 46. install_package
+pub fn install_package(pkg_data: &[u8], flags: u32) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall3(
+            SYS_INSTALL_PACKAGE,
+            pkg_data.as_ptr() as u64,
+            pkg_data.len() as u64,
+            flags as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 47. uninstall_package
+pub fn uninstall_package(name: &str) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall2(
+            SYS_UNINSTALL_PACKAGE,
+            name.as_ptr() as u64,
+            name.len() as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 48. get_partitions
+pub fn get_partitions(out: &mut [PartitionInfo]) -> Result<usize, i32> {
+    let ret = unsafe {
+        syscall4(
+            SYS_GET_PARTITIONS,
+            0,
+            0,
+            out.as_mut_ptr() as u64,
+            out.len() as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 49. trigger_recovery
+pub fn trigger_recovery(reason: u32, action: u32) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall2(
+            SYS_TRIGGER_RECOVERY,
+            reason as u64,
+            action as u64,
+        )
+    };
     if ret >= 0 {
         Ok(())
     } else {

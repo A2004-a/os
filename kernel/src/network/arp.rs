@@ -2,7 +2,6 @@
 //! IP-to-MAC resolution, ARP request/reply generation, and ARP cache management.
 
 extern crate alloc;
-use alloc::collections::BTreeMap;
 use crate::network::ipv4::Ipv4Address;
 use crate::network::mac::MacAddress;
 use crate::scheduler::sync::SpinLock;
@@ -118,26 +117,47 @@ impl ArpPacket {
     }
 }
 
+pub const ARP_CACHE_CAPACITY: usize = 64;
+
 pub struct ArpCache {
-    entries: BTreeMap<Ipv4Address, MacAddress>,
+    entries: [Option<(Ipv4Address, MacAddress)>; ARP_CACHE_CAPACITY],
 }
 
 impl ArpCache {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            entries: BTreeMap::new(),
+            entries: [None; ARP_CACHE_CAPACITY],
         }
     }
 
     pub fn insert(&mut self, ip: Ipv4Address, mac: MacAddress) {
-        self.entries.insert(ip, mac);
+        for entry in self.entries.iter_mut() {
+            if let Some((existing_ip, existing_mac)) = entry {
+                if *existing_ip == ip {
+                    *existing_mac = mac;
+                    return;
+                }
+            }
+        }
+        for entry in self.entries.iter_mut() {
+            if entry.is_none() {
+                *entry = Some((ip, mac));
+                return;
+            }
+        }
+        self.entries[0] = Some((ip, mac));
     }
 
     pub fn lookup(&self, ip: &Ipv4Address) -> Option<MacAddress> {
-        self.entries.get(ip).copied()
+        for entry in self.entries.iter() {
+            if let Some((cached_ip, cached_mac)) = entry {
+                if cached_ip == ip {
+                    return Some(*cached_mac);
+                }
+            }
+        }
+        None
     }
 }
 
-pub static ARP_CACHE: SpinLock<ArpCache> = SpinLock::new("arp_cache", ArpCache {
-    entries: BTreeMap::new(),
-});
+pub static ARP_CACHE: SpinLock<ArpCache> = SpinLock::new("arp_cache", ArpCache::new());
