@@ -86,6 +86,22 @@ static EXCEPTION_NAMES: [&str; 32] = [
 #[no_mangle]
 pub extern "C" fn handle_exception(ctx: &mut ExceptionContext) {
     let vector = ctx.vector as usize;
+
+    // Hardware IRQs Routing (Vectors 32..47)
+    if vector == 32 {
+        crate::drivers::timer::on_timer_tick();
+        return;
+    } else if vector == 33 {
+        crate::drivers::keyboard::on_keyboard_irq();
+        return;
+    } else if vector == 44 {
+        crate::drivers::mouse::on_mouse_irq();
+        return;
+    } else if vector >= 32 && vector <= 47 {
+        crate::drivers::pic::send_eoi((vector - 32) as u8);
+        return;
+    }
+
     let name = if vector < 32 {
         EXCEPTION_NAMES[vector]
     } else {

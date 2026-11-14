@@ -1,5 +1,5 @@
 //! NovaOS Apex — 256-Entry Interrupt Descriptor Table (IDT) & Assembly Trampolines
-//! Maps hardware exceptions, sets IST1 for Double Fault (#DF), and manages IDTR.
+//! Maps hardware exceptions (0..31) and hardware IRQs (32..47).
 
 use super::gdt::{DOUBLE_FAULT_IST_INDEX, KERNEL_CODE_SELECTOR};
 use super::instructions::{lidt, DescriptorTablePointer};
@@ -52,38 +52,15 @@ static mut IDT: IdtTable = IdtTable {
 };
 
 extern "C" {
-    fn isr0();
-    fn isr1();
-    fn isr2();
-    fn isr3();
-    fn isr4();
-    fn isr5();
-    fn isr6();
-    fn isr7();
-    fn isr8();
-    fn isr9();
-    fn isr10();
-    fn isr11();
-    fn isr12();
-    fn isr13();
-    fn isr14();
-    fn isr15();
-    fn isr16();
-    fn isr17();
-    fn isr18();
-    fn isr19();
-    fn isr20();
-    fn isr21();
-    fn isr22();
-    fn isr23();
-    fn isr24();
-    fn isr25();
-    fn isr26();
-    fn isr27();
-    fn isr28();
-    fn isr29();
-    fn isr30();
-    fn isr31();
+    fn isr0(); fn isr1(); fn isr2(); fn isr3(); fn isr4(); fn isr5(); fn isr6(); fn isr7();
+    fn isr8(); fn isr9(); fn isr10(); fn isr11(); fn isr12(); fn isr13(); fn isr14(); fn isr15();
+    fn isr16(); fn isr17(); fn isr18(); fn isr19(); fn isr20(); fn isr21(); fn isr22(); fn isr23();
+    fn isr24(); fn isr25(); fn isr26(); fn isr27(); fn isr28(); fn isr29(); fn isr30(); fn isr31();
+
+    // Hardware IRQ vectors (32..47)
+    fn isr32(); fn isr33(); fn isr34(); fn isr35(); fn isr36(); fn isr37(); fn isr38(); fn isr39();
+    fn isr40(); fn isr41(); fn isr42(); fn isr43(); fn isr44(); fn isr45(); fn isr46(); fn isr47();
+
     fn isr_default();
 }
 
@@ -130,6 +107,24 @@ pub fn init() {
         entries[29].set_handler(isr29 as *const () as usize, 0, 0); // #VC: VMM Communication Exception
         entries[30].set_handler(isr30 as *const () as usize, 0, 0); // #SX: Security Exception
         entries[31].set_handler(isr31 as *const () as usize, 0, 0);
+
+        // Hardware IRQs (32..47)
+        entries[32].set_handler(isr32 as *const () as usize, 0, 0); // IRQ 0: 8254 Timer
+        entries[33].set_handler(isr33 as *const () as usize, 0, 0); // IRQ 1: PS/2 Keyboard
+        entries[34].set_handler(isr34 as *const () as usize, 0, 0); // IRQ 2: Cascade
+        entries[35].set_handler(isr35 as *const () as usize, 0, 0); // IRQ 3: COM2
+        entries[36].set_handler(isr36 as *const () as usize, 0, 0); // IRQ 4: COM1
+        entries[37].set_handler(isr37 as *const () as usize, 0, 0); // IRQ 5: LPT2
+        entries[38].set_handler(isr38 as *const () as usize, 0, 0); // IRQ 6: Floppy
+        entries[39].set_handler(isr39 as *const () as usize, 0, 0); // IRQ 7: Spurious Master
+        entries[40].set_handler(isr40 as *const () as usize, 0, 0); // IRQ 8: RTC
+        entries[41].set_handler(isr41 as *const () as usize, 0, 0); // IRQ 9: ACPI
+        entries[42].set_handler(isr42 as *const () as usize, 0, 0); // IRQ 10
+        entries[43].set_handler(isr43 as *const () as usize, 0, 0); // IRQ 11
+        entries[44].set_handler(isr44 as *const () as usize, 0, 0); // IRQ 12: PS/2 Mouse
+        entries[45].set_handler(isr45 as *const () as usize, 0, 0); // IRQ 13: FPU
+        entries[46].set_handler(isr46 as *const () as usize, 0, 0); // IRQ 14: Primary ATA
+        entries[47].set_handler(isr47 as *const () as usize, 0, 0); // IRQ 15: Secondary ATA
 
         // Load IDTR via lidt instruction
         let idt_descriptor = DescriptorTablePointer {
@@ -189,6 +184,23 @@ ISR_NOERRCODE 28
 ISR_ERRCODE   29
 ISR_ERRCODE   30
 ISR_NOERRCODE 31
+
+ISR_NOERRCODE 32
+ISR_NOERRCODE 33
+ISR_NOERRCODE 34
+ISR_NOERRCODE 35
+ISR_NOERRCODE 36
+ISR_NOERRCODE 37
+ISR_NOERRCODE 38
+ISR_NOERRCODE 39
+ISR_NOERRCODE 40
+ISR_NOERRCODE 41
+ISR_NOERRCODE 42
+ISR_NOERRCODE 43
+ISR_NOERRCODE 44
+ISR_NOERRCODE 45
+ISR_NOERRCODE 46
+ISR_NOERRCODE 47
 
 .global isr_default
 isr_default:

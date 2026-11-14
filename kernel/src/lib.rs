@@ -7,6 +7,7 @@ extern crate alloc;
 
 pub mod arch;
 pub mod boot;
+pub mod drivers;
 pub mod memory;
 pub mod objects;
 pub mod panic;

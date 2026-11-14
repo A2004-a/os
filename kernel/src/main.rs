@@ -1,14 +1,14 @@
-//! NovaOS Apex — Bare-Metal Kernel Entrypoint (Milestone 2)
-//! Boots from UEFI handoff, sets up GDT/TSS/IDT, executes M1 exception tests,
-//! initializes 4-level paging, frame allocator, heap, and executes M2 memory and object model tests.
+//! NovaOS Apex — Bare-Metal Kernel Entrypoint (Milestone 3)
+//! Initializes GDT/TSS/IDT, 4-level paging, heap, objects, and all 10 first-party device drivers.
 
 #![no_std]
 #![no_main]
 
 use core::ptr::addr_of_mut;
 use novaos_apex_kernel::arch;
-use novaos_apex_kernel::arch::x86_64::instructions::hlt;
+use novaos_apex_kernel::arch::x86_64::instructions::{hlt, sti};
 use novaos_apex_kernel::boot::BootInfo;
+use novaos_apex_kernel::drivers;
 use novaos_apex_kernel::memory;
 use novaos_apex_kernel::objects;
 use novaos_apex_kernel::serial;
@@ -38,10 +38,10 @@ pub extern "C" fn _start(boot_info: *const BootInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
-    // 1. Initial Serial Milestone 2 Greeting
+    // 1. Initial Serial Milestone 3 Greeting
     serial::write_str("\nNovaOS Apex started\n");
     serial::write_str("=======================================================\n");
-    serial::write_str("   NovaOS Apex — Bare-Metal Kernel Core (Milestone 2)  \n");
+    serial::write_str("   NovaOS Apex — Bare-Metal Kernel Core (Milestone 3)  \n");
     serial::write_str("=======================================================\n");
 
     // 2. Validate BootInfo from UEFI Handoff
@@ -95,30 +95,32 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     serial::write_str("[KERNEL] CPU segment tables and 256 interrupt gates armed.\n");
 
     // 4. Run Milestone 1 Deliberate Exception & Fault Tests
-    let m1_tests_passed = arch::tests::run_all_tests();
-    if !m1_tests_passed {
-        serial::write_str("[KERNEL WARN] Milestone 1 exception verification reported issues.\n");
-    }
+    let m1_passed = arch::tests::run_all_tests();
 
-    // 5. Initialize Milestone 2 Memory Subsystem (Frame Allocator, 4-Level Paging, Heap)
+    // 5. Initialize Milestone 2 Memory Subsystem
     serial::write_str("\n[KERNEL] Initializing Milestone 2 Memory Subsystem...\n");
     memory::init(boot_info);
-
-    // 6. Run Milestone 2 Memory Verification Test Suite
-    let m2_mem_tests_passed = memory::tests::run_all_tests();
-
-    // 7. Run Milestone 2 Kernel Object & Typed-Handle Test Suite
-    let m2_obj_tests_passed = objects::tests::run_object_tests();
-
-    // 8. Print Memory Telemetry Summary
+    let m2_mem_passed = memory::tests::run_all_tests();
+    let m2_obj_passed = objects::tests::run_object_tests();
     memory::stats::print_summary();
 
-    if m1_tests_passed && m2_mem_tests_passed && m2_obj_tests_passed {
-        serial::write_str("\n[MILESTONE 2 VERIFIED] Physical frame allocator, 4-level paging mapper,\n");
-        serial::write_str("                       kernel heap, guard page stacks, and typed-handle model\n");
-        serial::write_str("                       passed all verification gates with zero errors!\n");
+    // 6. Initialize Milestone 3 Device Drivers (in exact Section 10 order)
+    serial::write_str("\n[KERNEL] Initializing Milestone 3 Device Drivers...\n");
+    drivers::init(boot_info);
+
+    // 7. Run Milestone 3 Device Driver Verification Suite
+    let m3_drivers_passed = drivers::tests::run_all_tests();
+
+    // 8. Enable Hardware Interrupts
+    serial::write_str("[KERNEL] Enabling hardware interrupts via STI...\n");
+    sti();
+
+    if m1_passed && m2_mem_passed && m2_obj_passed && m3_drivers_passed {
+        serial::write_str("\n[MILESTONE 3 VERIFIED] All 10 first-party device drivers (UART, GOP,\n");
+        serial::write_str("                       Console, Timer/APIC, Keyboard, Mouse, PCI, VirtIO-Block,\n");
+        serial::write_str("                       VirtIO-Net, Audio) passed verification gates with zero errors!\n");
     } else {
-        serial::write_str("\n[MILESTONE 2 WARN] Verification encountered anomalies.\n");
+        serial::write_str("\n[MILESTONE 3 WARN] Driver verification encountered anomalies.\n");
     }
 
     // 9. Stable CPU Halt Loop
