@@ -1,12 +1,18 @@
 //! NovaOS Zero — Graphical Subsystem (Compositor, Window Server, NovaUI, Font)
 
 pub mod compositor;
+pub mod desktop_shell;
 pub mod font;
 pub mod graphics_test;
 pub mod novaui;
+pub mod shell_test;
 pub mod window_server;
 
 pub use compositor::{Color, Rect, Surface};
+pub use desktop_shell::{
+    DesktopShell, Notification, NotificationLevel, SnapState, MAX_NOTIFICATIONS, MAX_WORKSPACES,
+    TASKBAR_HEIGHT,
+};
 pub use novaui::{Button, Label, Panel, ProgressBar, WidgetState};
 pub use window_server::{Window, WindowServer};
 

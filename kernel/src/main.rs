@@ -52,6 +52,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // Run Milestone M7 2D Compositor, Window Server, and NovaUI verification suite
     novaos_kernel::graphics::graphics_test::run_graphics_diagnostics();
 
+    // Run Milestone M8 Desktop Shell, Taskbar, Launcher, and Workspaces verification suite
+    novaos_kernel::graphics::shell_test::run_shell_diagnostics();
+
     println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");
 
