@@ -87,8 +87,8 @@ impl UefiVolume {
 
         let file = unsafe { &*file_ptr };
 
-        // Allocate a buffer up to 4MB for reading
-        const MAX_FILE_SIZE: usize = 4 * 1024 * 1024;
+        // Allocate a buffer up to 32MB for reading
+        const MAX_FILE_SIZE: usize = 32 * 1024 * 1024;
         let pages = (MAX_FILE_SIZE + 4095) / 4096;
         let mut alloc_addr: u64 = 0;
         let alloc_status = unsafe {

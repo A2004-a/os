@@ -139,9 +139,27 @@ pub fn get_uptime_ms() -> u64 {
 }
 
 pub fn sleep_ms(ms: u64) {
-    let start = get_ticks();
-    while get_ticks().saturating_sub(start) < ms {
-        core::hint::spin_loop();
+    let rflags: u64;
+    unsafe {
+        asm!("pushfq", "pop {}", out(reg) rflags, options(nomem, preserves_flags));
+    }
+    let interrupts_enabled = (rflags & 0x200) != 0;
+
+    if interrupts_enabled {
+        let start = get_ticks();
+        while get_ticks().saturating_sub(start) < ms {
+            core::hint::spin_loop();
+        }
+    } else {
+        // Interrupts are disabled (early boot or critical section).
+        // Calibrated port 0x80 delay (~1 microsecond per I/O cycle).
+        for _ in 0..ms {
+            for _ in 0..1000 {
+                unsafe {
+                    asm!("out dx, al", in("dx") 0x80u16, in("al") 0u8, options(nomem, nostack, preserves_flags));
+                }
+            }
+        }
     }
 }
 

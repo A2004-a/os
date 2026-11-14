@@ -1,18 +1,24 @@
 //! NovaOS Apex — First-Party Device Driver Subsystem & Hardware Lifecycle Manager
 //! Implements strict probe/init/start/stop lifecycles for all system peripherals.
 
+pub mod ahci;
 pub mod audio;
 pub mod console;
 pub mod framebuffer;
+pub mod hardware_tests;
+pub mod hda;
 pub mod keyboard;
 pub mod mouse;
+pub mod nvme;
 pub mod pci;
 pub mod pic;
 pub mod serial;
 pub mod tests;
 pub mod timer;
+pub mod usb_hid;
 pub mod virtio_block;
 pub mod virtio_net;
+pub mod xhci;
 
 use crate::boot::BootInfo;
 
@@ -77,4 +83,17 @@ pub fn init(boot_info: &BootInfo) {
 
     // 10. Basic Audio Abstraction (PC Speaker)
     audio::init();
+
+    // 11. AHCI SATA 1.3 Storage Driver
+    ahci::init();
+
+    // 12. NVMe 1.4 Storage Driver
+    nvme::init();
+
+    // 13. USB 3.0 xHCI & USB HID Driver
+    xhci::init();
+    usb_hid::init();
+
+    // 14. Intel High Definition Audio Driver
+    hda::init();
 }

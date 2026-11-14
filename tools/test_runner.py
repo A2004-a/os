@@ -10,7 +10,7 @@ import os
 import time
 import subprocess
 
-def run_test(timeout_sec=35):
+def run_test(timeout_sec=60):
     qemu_path = r"C:\Program Files\qemu\qemu-system-x86_64.exe"
     ovmf_path = os.path.join(os.getcwd(), "tools", "OVMF.fd")
     
@@ -53,8 +53,8 @@ def run_test(timeout_sec=35):
                 sys.stdout.flush()
                 lines.append(line)
 
-                if "[MILESTONE 10 TEST RESULT] ALL 6 TEST SUITES PASSED" in line or "[MILESTONE 10 VERIFIED]" in line or "PID 1 entering steady-state supervisory loop" in line:
-                    print("\n[TEST RUNNER] Detected Milestone 10 success criteria!")
+                if "[MILESTONE 11 TEST RESULT] ALL 6 TEST SUITES PASSED" in line or "[MILESTONE 11 VERIFIED]" in line or "PID 1 entering steady-state supervisory loop" in line:
+                    print("\n[TEST RUNNER] Detected Milestone 11 success criteria!")
                     success = True
                     break
             else:

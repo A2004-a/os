@@ -196,7 +196,17 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     }
     recovery::get_recovery().record_boot_success();
 
-    // 15. Initialize Scheduler & IPC Subsystems
+    // 15. Run Milestone 11 Hardware Expansion Verification Suite
+    serial::write_str("\n[KERNEL] Initializing Milestone 11 Hardware Expansion Subsystem...\n");
+    let m11_passed = drivers::hardware_tests::run_m11_verification_suite();
+    if m11_passed {
+        serial::write_str("\n[MILESTONE 11 VERIFIED] AHCI SATA 1.3, NVMe 1.4, USB 3.0 xHCI & HID,\n");
+        serial::write_str("                        and Intel High Definition Audio (HDA) confirmed operational!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 11 WARN] Hardware Expansion encountered anomalies.\n");
+    }
+
+    // 16. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 

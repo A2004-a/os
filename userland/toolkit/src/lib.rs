@@ -107,6 +107,10 @@ impl Color {
             (hex & 0xFF) as u8,
         )
     }
+
+    pub const fn as_u32(&self) -> u32 {
+        self.0
+    }
 }
 
 // 3. Rasterization Helpers (Surface memory writer)

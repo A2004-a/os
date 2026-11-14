@@ -6,7 +6,7 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ---
 
-## Current Status: Milestone 10 (App Platform, Installer & Recovery)
+## Current Status: Milestone 11 (Hardware Expansion)
 
 ### 1. CPU, Scheduling & Synchronization
 - **Multicore (SMP):** Single-core execution only (Bootstrap Processor / BSP). Multi-core scheduling across APs is scheduled for Milestone 11.
@@ -74,4 +74,15 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 - **System Recovery & Diagnostics (`RecoveryManager`):** Boot attempt counter tracking consecutive startup failures, automated 3-strike threshold triggering `RecoveryState::SafeMode`, automated rollback to previous stable snapshot, system snapshot management (`create_snapshot`, `rollback_to_snapshot`), and NovaFS superblock integrity scrubber (`scrub_novafs`).
 - **System Calls 44..48:** Five new syscalls wired: `SYS_VERIFY_PACKAGE` (44), `SYS_INSTALL_PACKAGE` (45), `SYS_UNINSTALL_PACKAGE` (46), `SYS_GET_PARTITIONS` (47), and `SYS_TRIGGER_RECOVERY` (48).
 - **Native Userland Applications:** `NovaInstallerApp` (setup wizard with 4-volume partition bar and live deployment tracking) and `NovaRecoveryApp` (recovery center with boot counter diagnostics, snapshot cards, and one-click scrubber/rollback/safe-mode controls).
-- **Next Milestone Target:** Hardware Expansion (AHCI SATA 1.3, NVMe 1.4, USB 3.0 xHCI & HID, Intel HD Audio) is scheduled for **Milestone 11**.
+### 10. Hardware Expansion Subsystem (Milestone 11)
+- **AHCI SATA 1.3 Controller Driver (`kernel/src/drivers/ahci.rs`):** HBA Generic Host Control (GHC) MMIO registers, AHCI mode enable (`GHC.AE`), global reset sequence (`GHC.HR`), port discovery via SATA Status (`SSTS.DET == 3`), FIS-based switching, Command List and Received FIS port rebasing, ATA IDENTIFY (`0xEC`) parsing for drive geometry and 48-bit LBA capability, 48-bit LBA DMA sector read/write transactions (`READ DMA EXT 0x25`, `WRITE DMA EXT 0x35`), and high-performance in-memory fallback SATA drive (`/dev/sda`, 1024 sectors, 512 KiB).
+- **NVMe 1.4 Solid-State Drive Driver (`kernel/src/drivers/nvme.rs`):** PCIe BAR0 MMIO register interface (CAP, CC, CSTS, AQA, ASQ, ACQ), Admin Submission/Completion Queues (ASQ/ACQ) circular doorbell ring buffers, Identify Controller (`0x06`) and Identify Namespace 1 (`0x00`) data structure decoding, I/O Submission/Completion Queue (IOSQ/IOCQ) creation, Doorbell register dispatch, and NVM Command Set block I/O DMA read (`0x02`) and write (`0x01`) mapped to `/dev/nvme0n1` (2048 sectors, 1024 KiB).
+- **USB 3.0 xHCI Controller Driver (`kernel/src/drivers/xhci.rs`):** xHCI Capability (CAPLENGTH, HCIVERSION, HCSPARAMS1/2, HCCPARAMS1) and Operational registers (USBCMD, USBSTS, CONFIG, PORTSC), controller reset (`USBCMD.HCRST`), Operational Run enable (`USBCMD.RS`), and port connection detection.
+- **USB Human Interface Device (HID) Driver (`kernel/src/drivers/usb_hid.rs`):** USB Boot Protocol 8-byte keyboard report decoder (modifiers, 6-key rollover) with HID Usage Page 0x07 to ASCII and PS/2 scancode translation, and USB Boot Protocol 4-byte optical mouse report decoder (3 buttons, dx, dy, wheel) translating to 3-byte PS/2 packets and feeding desktop compositor events.
+- **Intel High Definition Audio (HDA 1.0a) Driver (`kernel/src/drivers/hda.rs`):** Global Control (`GCTL.CRST`) reset sequence, CORB/RIRB ring buffers, Codec Verb formatting, Stream Descriptor 0 Output configuration (16-bit 44.1 kHz stereo PCM), real-time square/sine wave synthesis, signature boot chime sequence (F#4 -> A#4 -> C#5 -> F#5), and early-boot calibrated delays via port 0x80 cycles.
+- **Unified Hardware Platform Syscalls 49..51 (`kernel/src/syscall/mod.rs` & `userland/runtime/`):**
+  - `SYS_PLAY_AUDIO (49)`: Dispatches synthesized frequency and duration or boot chime to audio pipeline.
+  - `SYS_LIST_BLOCK_DEVICES (50)`: Returns multi-bus block storage devices (`/dev/vda`, `/dev/sda`, `/dev/nvme0n1`).
+  - `SYS_GET_HARDWARE_INFO (51)`: Populates typed `HardwareSummary` descriptor with PCI, storage, and peripheral status.
+- **Native Userland Hardware Device Manager (`userland/apps/src/devicemanager.rs`):** Categorized hardware tree (Storage, HID, Audio, Network, Display), hardware property inspection pane, and test audio chime button.
+- **Next Milestone Target:** Hardening & Release Engineering (Syscall fuzzing, hardware conformance certification, release ISO builder) is scheduled for **Milestone 12**.

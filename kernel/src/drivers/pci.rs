@@ -218,6 +218,41 @@ pub fn find_by_class(class_code: u8, subclass: u8) -> Option<PciDevice> {
     None
 }
 
+pub fn find_by_class_and_progif(class_code: u8, subclass: u8, prog_if: u8) -> Option<PciDevice> {
+    let pci = unsafe { &*addr_of_mut!(PCI_DRIVER) };
+    for i in 0..pci.device_count {
+        if let Some(ref d) = pci.devices[i] {
+            if d.class_code == class_code && d.subclass == subclass && d.prog_if == prog_if {
+                return Some(*d);
+            }
+        }
+    }
+    None
+}
+
+pub fn pci_enable_bus_master(bus: u8, slot: u8, func: u8) {
+    let cmd = pci_read_u32(bus, slot, func, 0x04);
+    // Bit 0: I/O Space, Bit 1: Memory Space, Bit 2: Bus Master
+    let new_cmd = cmd | 0x07;
+    pci_write_u32(bus, slot, func, 0x04, new_cmd);
+}
+
+pub fn list_all_devices(out: &mut [PciDevice]) -> usize {
+    let pci = unsafe { &*addr_of_mut!(PCI_DRIVER) };
+    let count = pci.device_count.min(out.len());
+    let mut copied = 0;
+    for i in 0..pci.device_count {
+        if copied >= count {
+            break;
+        }
+        if let Some(ref d) = pci.devices[i] {
+            out[copied] = *d;
+            copied += 1;
+        }
+    }
+    copied
+}
+
 fn print_u64(mut n: u64) {
     if n == 0 {
         serial::write_str("0");

@@ -53,6 +53,33 @@ pub const SYS_INSTALL_PACKAGE: usize = 45;
 pub const SYS_UNINSTALL_PACKAGE: usize = 46;
 pub const SYS_GET_PARTITIONS: usize = 47;
 pub const SYS_TRIGGER_RECOVERY: usize = 48;
+pub const SYS_PLAY_AUDIO: usize = 49;
+pub const SYS_LIST_BLOCK_DEVICES: usize = 50;
+pub const SYS_GET_HARDWARE_INFO: usize = 51;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlockDeviceInfo {
+    pub id: u32,
+    pub name: [u8; 32],
+    pub bus_type: u32, // 0 = VirtIO, 1 = AHCI SATA, 2 = NVMe
+    pub capacity_sectors: u64,
+    pub sector_size: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HardwareSummary {
+    pub pci_devices_detected: u32,
+    pub block_devices_count: u32,
+    pub has_ahci_sata: u32,
+    pub has_nvme_ssd: u32,
+    pub has_usb3_xhci: u32,
+    pub has_intel_hda: u32,
+    pub audio_codecs_count: u32,
+    pub screen_width: u32,
+    pub screen_height: u32,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -943,6 +970,54 @@ pub fn trigger_recovery(reason: u32, action: u32) -> Result<(), i32> {
             SYS_TRIGGER_RECOVERY,
             reason as u64,
             action as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 50. play_audio
+pub fn play_audio(tone_code: u32, duration_ms: u32, volume: u32) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall3(
+            SYS_PLAY_AUDIO,
+            tone_code as u64,
+            duration_ms as u64,
+            volume as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 51. list_block_devices
+pub fn list_block_devices(out: &mut [BlockDeviceInfo]) -> Result<usize, i32> {
+    let ret = unsafe {
+        syscall2(
+            SYS_LIST_BLOCK_DEVICES,
+            out.as_mut_ptr() as u64,
+            out.len() as u64,
+        )
+    };
+    if ret >= 0 {
+        Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 52. get_hardware_info
+pub fn get_hardware_info(summary: &mut HardwareSummary) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall1(
+            SYS_GET_HARDWARE_INFO,
+            summary as *mut HardwareSummary as u64,
         )
     };
     if ret >= 0 {

@@ -10,6 +10,7 @@ use core::panic::PanicInfo;
 use core::ptr::addr_of_mut;
 use novaos_apex_runtime::*;
 
+mod devicemanager;
 mod files;
 mod installer;
 mod monitor;
@@ -18,6 +19,7 @@ mod recovery;
 mod settings;
 mod terminal;
 
+use devicemanager::NovaDeviceManagerApp;
 use files::NovaFilesApp;
 use installer::NovaInstallerApp;
 use monitor::NovaMonitorApp;
@@ -97,7 +99,15 @@ pub extern "C" fn _start() -> ! {
         print("[APPS] [PASS] Nova Recovery Center window mapped and composited.\n");
     }
 
-    print("\n[APPS SUCCESS] All 7 core native applications operational!\n");
+    // 8. Initialize Nova Device Manager & Hardware Platform
+    let dev_app = NovaDeviceManagerApp::new(0, 0, APP_WIDTH, APP_HEIGHT);
+    dev_app.render(buf, APP_WIDTH);
+    if let Ok(w_dev) = create_window("Nova Device Manager", APP_WIDTH, APP_HEIGHT, 0) {
+        let _ = blit_window(w_dev, &buf[..]);
+        print("[APPS] [PASS] Nova Device Manager window mapped and composited.\n");
+    }
+
+    print("\n[APPS SUCCESS] All 8 core native applications operational!\n");
     exit(0);
 }
 

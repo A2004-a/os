@@ -122,6 +122,10 @@ pub fn beep(freq_hz: u32, duration_ms: u64) {
     audio.stop_tone();
 }
 
+pub fn play_beep(freq_hz: u32, duration_ms: u32) {
+    beep(freq_hz, duration_ms as u64);
+}
+
 pub fn play_tone(freq_hz: u32) {
     let audio = unsafe { &mut *addr_of_mut!(AUDIO_DRIVER) };
     audio.play_tone(freq_hz);

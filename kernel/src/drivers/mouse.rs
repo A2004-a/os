@@ -160,6 +160,50 @@ pub fn init(screen_w: u32, screen_h: u32) {
     }
 }
 
+pub fn on_mouse_packet(packet: [u8; 3]) {
+    let mouse = unsafe { &mut *addr_of_mut!(MOUSE_DRIVER) };
+    let flags = packet[0];
+    let raw_x = packet[1];
+    let raw_y = packet[2];
+
+    // Parse buttons
+    mouse.left_button = (flags & 0x01) != 0;
+    mouse.right_button = (flags & 0x02) != 0;
+    mouse.middle_button = (flags & 0x04) != 0;
+
+    // Parse deltas with sign extension
+    let mut dx = raw_x as i32;
+    if (flags & 0x10) != 0 {
+        dx |= !0xFF; // Negative sign extension
+    }
+    let mut dy = raw_y as i32;
+    if (flags & 0x20) != 0 {
+        dy |= !0xFF;
+    }
+    // Invert Y delta for screen coordinates (PS/2 Y points upward)
+    dy = -dy;
+
+    // Update cursor coordinates clamped to display bounds
+    mouse.x = (mouse.x + dx).clamp(0, mouse.max_x.saturating_sub(1));
+    mouse.y = (mouse.y + dy).clamp(0, mouse.max_y.saturating_sub(1));
+
+    let event = MouseEvent {
+        x: mouse.x,
+        y: mouse.y,
+        dx,
+        dy,
+        left_button: mouse.left_button,
+        right_button: mouse.right_button,
+        middle_button: mouse.middle_button,
+    };
+
+    let next_write = (mouse.write_idx + 1) % MOUSE_QUEUE_SIZE;
+    if next_write != mouse.read_idx {
+        mouse.queue[mouse.write_idx] = Some(event);
+        mouse.write_idx = next_write;
+    }
+}
+
 pub fn on_mouse_irq() {
     let mut b: u8;
     unsafe {
@@ -180,46 +224,8 @@ pub fn on_mouse_irq() {
     if mouse.packet_idx == 3 {
         // Complete 3-byte packet received
         mouse.packet_idx = 0;
-        let flags = mouse.packet[0];
-        let raw_x = mouse.packet[1];
-        let raw_y = mouse.packet[2];
-
-        // Parse buttons
-        mouse.left_button = (flags & 0x01) != 0;
-        mouse.right_button = (flags & 0x02) != 0;
-        mouse.middle_button = (flags & 0x04) != 0;
-
-        // Parse deltas with sign extension
-        let mut dx = raw_x as i32;
-        if (flags & 0x10) != 0 {
-            dx |= !0xFF; // Negative sign extension
-        }
-        let mut dy = raw_y as i32;
-        if (flags & 0x20) != 0 {
-            dy |= !0xFF;
-        }
-        // Invert Y delta for screen coordinates (PS/2 Y points upward)
-        dy = -dy;
-
-        // Update cursor coordinates clamped to display bounds
-        mouse.x = (mouse.x + dx).clamp(0, mouse.max_x.saturating_sub(1));
-        mouse.y = (mouse.y + dy).clamp(0, mouse.max_y.saturating_sub(1));
-
-        let event = MouseEvent {
-            x: mouse.x,
-            y: mouse.y,
-            dx,
-            dy,
-            left_button: mouse.left_button,
-            right_button: mouse.right_button,
-            middle_button: mouse.middle_button,
-        };
-
-        let next_write = (mouse.write_idx + 1) % MOUSE_QUEUE_SIZE;
-        if next_write != mouse.read_idx {
-            mouse.queue[mouse.write_idx] = Some(event);
-            mouse.write_idx = next_write;
-        }
+        let pkt = mouse.packet;
+        on_mouse_packet(pkt);
     }
 
     super::pic::send_eoi(12);

@@ -100,12 +100,7 @@ pub fn init() {
     }
 }
 
-pub fn on_keyboard_irq() {
-    let mut scancode: u8;
-    unsafe {
-        asm!("in al, dx", in("dx") KEYBOARD_DATA_PORT, out("al") scancode, options(nomem, nostack, preserves_flags));
-    }
-
+pub fn on_scancode_received(scancode: u8) {
     let kbd = unsafe { &mut *addr_of_mut!(KEYBOARD_DRIVER) };
 
     let pressed = (scancode & 0x80) == 0;
@@ -136,7 +131,15 @@ pub fn on_keyboard_irq() {
         kbd.queue[kbd.write_idx] = Some(event);
         kbd.write_idx = next_write;
     }
+}
 
+pub fn on_keyboard_irq() {
+    let mut scancode: u8;
+    unsafe {
+        asm!("in al, dx", in("dx") KEYBOARD_DATA_PORT, out("al") scancode, options(nomem, nostack, preserves_flags));
+    }
+
+    on_scancode_received(scancode);
     super::pic::send_eoi(1);
 }
 
