@@ -162,6 +162,44 @@ pub fn read_char() -> Option<char> {
     None
 }
 
+pub fn clear_queue() {
+    let kbd = unsafe { &mut *addr_of_mut!(KEYBOARD_DRIVER) };
+    kbd.read_idx = 0;
+    kbd.write_idx = 0;
+    for slot in kbd.queue.iter_mut() {
+        *slot = None;
+    }
+}
+
+pub fn reset() {
+    let kbd = unsafe { &mut *addr_of_mut!(KEYBOARD_DRIVER) };
+    kbd.shift_pressed = false;
+    kbd.ctrl_pressed = false;
+    kbd.alt_pressed = false;
+    kbd.caps_lock = false;
+    clear_queue();
+}
+
+pub fn is_shift_pressed() -> bool {
+    let kbd = unsafe { &*addr_of_mut!(KEYBOARD_DRIVER) };
+    kbd.shift_pressed
+}
+
+pub fn is_ctrl_pressed() -> bool {
+    let kbd = unsafe { &*addr_of_mut!(KEYBOARD_DRIVER) };
+    kbd.ctrl_pressed
+}
+
+pub fn is_alt_pressed() -> bool {
+    let kbd = unsafe { &*addr_of_mut!(KEYBOARD_DRIVER) };
+    kbd.alt_pressed
+}
+
+pub fn is_caps_locked() -> bool {
+    let kbd = unsafe { &*addr_of_mut!(KEYBOARD_DRIVER) };
+    kbd.caps_lock
+}
+
 fn decode_ascii(code: u8, shifted: bool) -> Option<char> {
     match (code, shifted) {
         (0x02, false) => Some('1'), (0x02, true) => Some('!'),

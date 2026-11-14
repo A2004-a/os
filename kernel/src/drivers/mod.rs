@@ -7,6 +7,7 @@ pub mod console;
 pub mod framebuffer;
 pub mod hardware_tests;
 pub mod hda;
+pub mod input_tests;
 pub mod keyboard;
 pub mod mouse;
 pub mod nvme;

@@ -146,7 +146,44 @@ impl UsbHidManager {
     /// Processes an incoming 8-byte USB Keyboard report.
     pub fn process_keyboard_report(&mut self, report: &UsbKeyboardReport) {
         self.total_keyboard_events += 1;
-        let _shift = (report.modifiers & (USB_MOD_LSHIFT | USB_MOD_RSHIFT)) != 0;
+
+        // Check for modifier transitions
+        let mod_diff = report.modifiers ^ self.last_modifiers;
+        if (mod_diff & USB_MOD_LSHIFT) != 0 {
+            if (report.modifiers & USB_MOD_LSHIFT) != 0 {
+                on_scancode_received(0x2A); // LShift make
+            } else {
+                on_scancode_received(0xAA); // LShift break
+            }
+        }
+        if (mod_diff & USB_MOD_RSHIFT) != 0 {
+            if (report.modifiers & USB_MOD_RSHIFT) != 0 {
+                on_scancode_received(0x36); // RShift make
+            } else {
+                on_scancode_received(0xB6); // RShift break
+            }
+        }
+        if (mod_diff & (USB_MOD_LCTRL | USB_MOD_RCTRL)) != 0 {
+            if (report.modifiers & (USB_MOD_LCTRL | USB_MOD_RCTRL)) != 0 {
+                on_scancode_received(0x1D); // Ctrl make
+            } else {
+                on_scancode_received(0x9D); // Ctrl break
+            }
+        }
+        if (mod_diff & (USB_MOD_LALT | USB_MOD_RALT)) != 0 {
+            if (report.modifiers & (USB_MOD_LALT | USB_MOD_RALT)) != 0 {
+                on_scancode_received(0x38); // Alt make
+            } else {
+                on_scancode_received(0xB8); // Alt break
+            }
+        }
+        if (mod_diff & (USB_MOD_LGUI | USB_MOD_RGUI)) != 0 {
+            if (report.modifiers & (USB_MOD_LGUI | USB_MOD_RGUI)) != 0 {
+                on_scancode_received(0x5B); // GUI/Win make
+            } else {
+                on_scancode_received(0xDB); // GUI/Win break
+            }
+        }
 
         // Check for new key presses
         for &k in &report.keycodes {

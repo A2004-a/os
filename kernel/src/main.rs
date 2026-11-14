@@ -217,7 +217,15 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 12 WARN] Hardening & Release verification encountered anomalies.\n");
     }
 
-    // 16b. Run Windows 11 Desktop Features Verification Suite (105 Gates)
+    // 16b. Run Comprehensive Keyboard & Mouse Subsystem Verification Suite (24 Gates)
+    let input_passed = drivers::input_tests::run_all_input_tests();
+    if input_passed {
+        serial::write_str("[KERNEL] All 24 keyboard & mouse hardware gates certified!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Keyboard & mouse verification encountered failures.\n");
+    }
+
+    // 16c. Run Windows 11 Desktop Features Verification Suite (105 Gates)
     let win105_passed = graphics::windows_features_test::run_all_105_windows_feature_tests();
     if win105_passed {
         serial::write_str("[KERNEL] Windows 11-class desktop subsystem certified with 105 passing features!\n");
@@ -240,8 +248,13 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     serial::write_str("[KERNEL] Enabling hardware interrupts via STI and entering multitasking...\n");
     sti();
 
-    // 12. Stable CPU Halt Loop (scheduler idle thread also halts when idle)
+    // 12. Stable CPU Halt Loop (polls keyboard/mouse inputs and halts when idle)
     loop {
+        if let Some(mut shell_guard) = crate::graphics::desktop::DESKTOP.try_lock() {
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.poll_input();
+            }
+        }
         hlt();
     }
 }

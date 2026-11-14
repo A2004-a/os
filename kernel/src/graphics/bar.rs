@@ -45,7 +45,7 @@ impl NovaBar {
 
     pub fn workspace_button_rect(&self, screen_h: u32, ws_index: u8) -> Rect {
         let bar_y = (screen_h.saturating_sub(self.height)) as i32;
-        let x = 60 + ((ws_index - 1) as i32 * 30);
+        let x = 156 + ((ws_index.saturating_sub(1)) as i32 * 30);
         Rect::new(x, bar_y + 10, 24, 28)
     }
 
@@ -91,14 +91,12 @@ impl NovaBar {
         // 3. Workspace Switcher Buttons (1..4)
         for ws in 1..=4 {
             let ws_rect = self.workspace_button_rect(screen_h, ws);
-            // shift right past search pill
-            let shifted_ws_rect = Rect::new(ws_rect.x + 96, ws_rect.y, ws_rect.width, ws_rect.height);
             let is_active = ws == active_ws;
             let bg = if is_active { Color::from_hex(0x283244) } else { Color::NOVA_SURFACE };
-            target.fill_rect(shifted_ws_rect, bg);
+            target.fill_rect(ws_rect, bg);
 
             if is_active {
-                target.draw_line(shifted_ws_rect.x + 4, shifted_ws_rect.bottom() - 2, shifted_ws_rect.right() - 4, shifted_ws_rect.bottom() - 2, Color::NOVA_ACCENT);
+                target.draw_line(ws_rect.x + 4, ws_rect.bottom() - 2, ws_rect.right() - 4, ws_rect.bottom() - 2, Color::NOVA_ACCENT);
             }
 
             let ch = (b'0' + ws) as char;
@@ -106,7 +104,7 @@ impl NovaBar {
             buf[0] = ch as u8;
             let label = core::str::from_utf8(&buf).unwrap_or("1");
             let text_color = if is_active { Color::NOVA_ACCENT } else { Color::TEXT_SECONDARY };
-            draw_text(target, label, shifted_ws_rect.x + 8, shifted_ws_rect.y + 6, text_color);
+            draw_text(target, label, ws_rect.x + 8, ws_rect.y + 6, text_color);
         }
 
         // 4. Centered Application Island (Running Apps)

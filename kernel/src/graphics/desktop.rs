@@ -39,6 +39,10 @@ pub struct DesktopShell {
     pub drag_start_win_pos: Point,
     pub uptime_ms: u64,
     pub blit_to_screen: bool,
+    pub prev_mouse_left: bool,
+    pub prev_mouse_right: bool,
+    pub prev_mouse_middle: bool,
+    pub win_key_down: bool,
 }
 
 impl DesktopShell {
@@ -69,6 +73,10 @@ impl DesktopShell {
             drag_start_win_pos: Point::ZERO,
             uptime_ms: 0,
             blit_to_screen: false,
+            prev_mouse_left: false,
+            prev_mouse_right: false,
+            prev_mouse_middle: false,
+            win_key_down: false,
         }
     }
 
@@ -350,6 +358,168 @@ impl DesktopShell {
             self.compositor.damage.add_rect(mr);
         }
         self.compositor.on_mouse_up(x, y, button);
+    }
+
+    pub fn toggle_show_desktop(&mut self) {
+        let any_visible = self.compositor.windows.iter().any(|w| w.visible);
+        for win in self.compositor.windows.iter_mut() {
+            win.visible = !any_visible;
+        }
+        let s_rect = Rect::new(0, 0, self.compositor.width, self.compositor.height);
+        self.compositor.damage.add_rect(s_rect);
+    }
+
+    pub fn on_key_event(&mut self, scancode: u8, char_code: Option<char>, pressed: bool, _shift: bool, _ctrl: bool, alt: bool) {
+        // Track Windows (Super/GUI) key: Scancode 0x5B (Make) / 0xDB (Break)
+        if scancode == 0x5B {
+            self.win_key_down = true;
+            if pressed {
+                self.toggle_launcher();
+            }
+            return;
+        } else if scancode == 0xDB {
+            self.win_key_down = false;
+            return;
+        }
+
+        // Windows Key Shortcuts
+        if self.win_key_down && pressed {
+            match scancode {
+                // Win + D: Toggle Show Desktop
+                0x20 => {
+                    self.toggle_show_desktop();
+                    self.composite();
+                    return;
+                }
+                // Win + Left Arrow: Snap Left
+                0x4B => {
+                    if let Some(active_id) = self.compositor.active_window {
+                        self.snap_window(active_id, SnapPosition::LeftHalf);
+                        self.composite();
+                    }
+                    return;
+                }
+                // Win + Right Arrow: Snap Right
+                0x4D => {
+                    if let Some(active_id) = self.compositor.active_window {
+                        self.snap_window(active_id, SnapPosition::RightHalf);
+                        self.composite();
+                    }
+                    return;
+                }
+                // Win + Up Arrow: Maximize
+                0x48 => {
+                    if let Some(active_id) = self.compositor.active_window {
+                        self.snap_window(active_id, SnapPosition::Maximize);
+                        self.composite();
+                    }
+                    return;
+                }
+                // Win + Down Arrow: Restore
+                0x50 => {
+                    if let Some(active_id) = self.compositor.active_window {
+                        self.restore_window(active_id);
+                        self.composite();
+                    }
+                    return;
+                }
+                // Win + R: Run Dialog
+                0x13 => {
+                    self.compositor.create_window("Run", 200, 200, 360, 160, 0, 1);
+                    self.composite();
+                    return;
+                }
+                _ => {}
+            }
+        }
+
+        // Alt + Tab Task Switcher
+        if alt && scancode == 0x0F && pressed {
+            self.task_switcher.visible = true;
+            self.task_switcher.next(self.compositor.windows.len());
+            let s_rect = Rect::new(0, 0, self.compositor.width, self.compositor.height);
+            self.compositor.damage.add_rect(s_rect);
+            self.composite();
+            return;
+        } else if !alt && self.task_switcher.visible {
+            self.task_switcher.visible = false;
+            let s_rect = Rect::new(0, 0, self.compositor.width, self.compositor.height);
+            self.compositor.damage.add_rect(s_rect);
+            self.composite();
+        }
+
+        // Escape: dismiss flyouts/popups
+        if scancode == 0x01 && pressed {
+            let mut closed_any = false;
+            if self.launcher.visible {
+                self.toggle_launcher();
+                closed_any = true;
+            }
+            if self.context_menu.visible {
+                let r = self.context_menu.rect();
+                self.context_menu.hide();
+                self.compositor.damage.add_rect(r);
+                closed_any = true;
+            }
+            if self.quick_settings.visible {
+                self.toggle_quick_settings();
+                closed_any = true;
+            }
+            if self.notifications.visible {
+                self.toggle_notifications();
+                closed_any = true;
+            }
+            if closed_any {
+                self.composite();
+                return;
+            }
+        }
+
+        // Forward normal keystrokes to active window
+        let ascii_byte = if let Some(c) = char_code { c as u8 } else { 0 };
+        self.compositor.on_key_event(scancode, ascii_byte, pressed);
+    }
+
+    pub fn poll_input(&mut self) -> bool {
+        let mut any_event = false;
+
+        // 1. Drain keyboard events
+        while let Some(k_ev) = crate::drivers::keyboard::read_key() {
+            self.on_key_event(k_ev.scancode, k_ev.char_code, k_ev.pressed, k_ev.shift, k_ev.ctrl, k_ev.alt);
+            any_event = true;
+        }
+
+        // 2. Drain mouse events
+        while let Some(m_ev) = crate::drivers::mouse::read_mouse_event() {
+            let cur = self.compositor.cursor.position();
+            if m_ev.x != cur.x || m_ev.y != cur.y {
+                self.on_mouse_move(m_ev.x, m_ev.y);
+                any_event = true;
+            }
+            if m_ev.left_button != self.prev_mouse_left {
+                if m_ev.left_button {
+                    self.on_mouse_down(m_ev.x, m_ev.y, 1);
+                } else {
+                    self.on_mouse_up(m_ev.x, m_ev.y, 1);
+                }
+                self.prev_mouse_left = m_ev.left_button;
+                any_event = true;
+            }
+            if m_ev.right_button != self.prev_mouse_right {
+                if m_ev.right_button {
+                    self.on_mouse_down(m_ev.x, m_ev.y, 2);
+                } else {
+                    self.on_mouse_up(m_ev.x, m_ev.y, 2);
+                }
+                self.prev_mouse_right = m_ev.right_button;
+                any_event = true;
+            }
+        }
+
+        if any_event {
+            self.composite();
+        }
+        any_event
     }
 
     pub fn composite(&mut self) {

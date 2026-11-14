@@ -245,3 +245,34 @@ pub fn read_mouse_event() -> Option<MouseEvent> {
     mouse.read_idx = (mouse.read_idx + 1) % MOUSE_QUEUE_SIZE;
     event
 }
+
+pub fn clear_queue() {
+    let mouse = unsafe { &mut *addr_of_mut!(MOUSE_DRIVER) };
+    mouse.read_idx = 0;
+    mouse.write_idx = 0;
+    for slot in mouse.queue.iter_mut() {
+        *slot = None;
+    }
+}
+
+pub fn set_cursor_pos(x: i32, y: i32) {
+    let mouse = unsafe { &mut *addr_of_mut!(MOUSE_DRIVER) };
+    mouse.x = x.clamp(0, mouse.max_x.saturating_sub(1));
+    mouse.y = y.clamp(0, mouse.max_y.saturating_sub(1));
+}
+
+pub fn get_button_states() -> (bool, bool, bool) {
+    let mouse = unsafe { &*addr_of_mut!(MOUSE_DRIVER) };
+    (mouse.left_button, mouse.right_button, mouse.middle_button)
+}
+
+pub fn reset() {
+    let mouse = unsafe { &mut *addr_of_mut!(MOUSE_DRIVER) };
+    mouse.x = mouse.max_x / 2;
+    mouse.y = mouse.max_y / 2;
+    mouse.packet_idx = 0;
+    mouse.left_button = false;
+    mouse.right_button = false;
+    mouse.middle_button = false;
+    clear_queue();
+}

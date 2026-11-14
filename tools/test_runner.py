@@ -53,6 +53,9 @@ def run_test(timeout_sec=60):
                 sys.stdout.flush()
                 lines.append(line)
 
+                if "[INPUT TEST RESULT] ALL 24 KEYBOARD & MOUSE TESTS PASSED (0 ERRORS)" in line:
+                    print("\n[TEST RUNNER] Detected Keyboard & Mouse 24-Gate Hardware Verification PASS!")
+
                 if "[WINDOWS 11 FEATURE VERIFICATION RESULT] ALL 105 FEATURES VERIFIED (0 ERRORS)" in line or "PID 1 entering steady-state supervisory loop" in line:
                     print("\n[TEST RUNNER] Detected Windows 11 105-Feature Verification & Production Release Certification!")
                     success = True
