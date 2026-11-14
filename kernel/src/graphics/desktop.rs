@@ -230,13 +230,13 @@ impl DesktopShell {
             if let Some(action) = self.context_menu.hit_test(x, y) {
                 match action {
                     ContextAction::OpenTerminal => {
-                        self.compositor.create_window("Terminal", 140, 120, 520, 340, 0, 1);
+                        self.activate_or_open_app("Terminal");
                     }
                     ContextAction::NewTextFile => {
-                        self.compositor.create_window("Notepad", 160, 140, 480, 320, 0, 1);
+                        self.activate_or_open_app("Notepad");
                     }
                     ContextAction::DisplaySettings => {
-                        self.compositor.create_window("Settings", 180, 160, 500, 360, 0, 1);
+                        self.activate_or_open_app("Settings");
                     }
                     ContextAction::Refresh => {
                         self.compositor.damage.add_rect(Rect::new(0, 0, self.compositor.width, self.compositor.height));
@@ -285,13 +285,7 @@ impl DesktopShell {
             if let Some(action) = self.launcher.hit_test(x, y, self.compositor.width, self.compositor.height, self.bar.height) {
                 match action {
                     LauncherAction::LaunchApp(app_name) => {
-                        let wid = self.compositor.create_window(app_name, 140, 80, 560, 380, 0, 1);
-                        if app_name == "Package Manager" || app_name == "Nova Store" || app_name == "Pkg Store" {
-                            self.render_store_surface(wid);
-                        } else if app_name == "Terminal" {
-                            self.init_terminal();
-                        }
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app(app_name);
                         self.toggle_launcher();
                     }
                     LauncherAction::PowerAction(_pwr) => {
@@ -371,30 +365,22 @@ impl DesktopShell {
             if button == 1 {
                 if x >= 14 && x <= 74 {
                     if y >= 24 && y <= 84 {
-                        let wid = self.compositor.create_window("Nova Files", 116, 32, 548, 656, 0, 1);
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app("Nova Files");
                         return;
                     } else if y >= 96 && y <= 156 {
-                        let wid = self.compositor.create_window("System Monitor", 160, 120, 520, 360, 0, 1);
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app("System Monitor");
                         return;
                     } else if y >= 168 && y <= 228 {
-                        let wid = self.compositor.create_window("Settings", 180, 140, 500, 360, 0, 1);
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app("Settings");
                         return;
                     } else if y >= 240 && y <= 300 {
-                        let wid = self.compositor.create_window("Nova Store", 180, 100, 560, 380, 0, 1);
-                        self.render_store_surface(wid);
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app("Nova Store");
                         return;
                     } else if y >= 312 && y <= 372 {
-                        let wid = self.compositor.create_window("Terminal", 220, 120, 560, 380, 0, 1);
-                        self.init_terminal();
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app("Terminal");
                         return;
                     } else if y >= 384 && y <= 444 {
-                        let wid = self.compositor.create_window("Device Manager", 240, 140, 520, 360, 0, 1);
-                        self.compositor.bring_to_front(wid);
+                        self.activate_or_open_app("Device Manager");
                         return;
                     }
                 }
@@ -507,7 +493,7 @@ impl DesktopShell {
                 }
                 // Win + R: Run Dialog
                 0x13 => {
-                    self.compositor.create_window("Run", 200, 200, 360, 160, 0, 1);
+                    self.activate_or_open_app("Run");
                     self.composite();
                     return;
                 }
@@ -746,7 +732,83 @@ impl DesktopShell {
     pub fn spawn_default_apps(&mut self) {
         // 1. Spawn Nova Files (File Explorer) on Left (x: 116, y: 32, 548x656 client)
         let w_files = self.compositor.create_window("Nova Files", 116, 32, 548, 656, 0, 1);
-        if let Some(win) = self.compositor.get_window_mut(w_files) {
+        self.render_files_surface(w_files);
+
+        // 2. Spawn Nova Terminal on Right (x: 686, y: 32, 560x656 client)
+        let _w_term = self.compositor.create_window("Terminal", 686, 32, 560, 656, 0, 1);
+        self.init_terminal();
+
+        // 3. Spawn Nova Store (x: 280, y: 90, 620x440 client)
+        let w_store = self.compositor.create_window("Nova Store", 280, 90, 620, 440, 0, 1);
+        self.render_store_surface(w_store);
+
+        // 4. Bring Nova Store to front as active window
+        self.compositor.bring_to_front(w_store);
+    }
+
+    pub fn activate_or_open_app(&mut self, app_name: &str) -> WindowId {
+        let (norm_name, default_rect) = match app_name {
+            "Nova Files" | "Files" | "File Explorer" => ("Nova Files", Rect::new(116, 32, 548, 656)),
+            "Terminal" | "Nova Terminal" => ("Terminal", Rect::new(686, 32, 560, 656)),
+            "Nova Store" | "Package Manager" | "Pkg Store" => ("Nova Store", Rect::new(280, 90, 620, 440)),
+            "System Monitor" | "Nova System Monitor" | "Sys Monitor" => ("System Monitor", Rect::new(160, 100, 560, 420)),
+            "Settings" | "Nova Settings" => ("Settings", Rect::new(200, 110, 580, 430)),
+            "Device Manager" | "Nova Device Manager" | "Device Mgr" => ("Device Manager", Rect::new(220, 120, 560, 420)),
+            "Calculator" | "Calc" => ("Calculator", Rect::new(320, 140, 360, 440)),
+            "Notepad" | "Text Editor" => ("Notepad", Rect::new(260, 120, 520, 380)),
+            "Run" => ("Run", Rect::new(200, 200, 360, 160)),
+            other => (other, Rect::new(200, 120, 520, 380)),
+        };
+
+        // 1. Check if a window with this title already exists
+        if let Some(existing_id) = self.compositor.windows.iter().find(|w| w.title == norm_name).map(|w| w.id) {
+            if let Some(win) = self.compositor.get_window_mut(existing_id) {
+                if win.state == WindowState::Minimized {
+                    win.state = WindowState::Normal;
+                }
+                win.visible = true;
+            }
+            self.compositor.bring_to_front(existing_id);
+            let b_rect = self.bar.rect(self.compositor.width, self.compositor.height);
+            self.compositor.damage.add_rect(b_rect);
+            return existing_id;
+        }
+
+        // 2. Window does not exist: create it cleanly and render its rich native surface
+        let wid = self.compositor.create_window(
+            norm_name,
+            default_rect.x,
+            default_rect.y,
+            default_rect.width,
+            default_rect.height,
+            0,
+            1,
+        );
+
+        match norm_name {
+            "Nova Files" => self.render_files_surface(wid),
+            "Terminal" => {
+                self.init_terminal();
+                self.redraw_terminal_surface();
+            }
+            "Nova Store" => self.render_store_surface(wid),
+            "System Monitor" => self.render_sysmon_surface(wid),
+            "Settings" => self.render_settings_surface(wid),
+            "Device Manager" => self.render_device_manager_surface(wid),
+            "Calculator" => self.render_calculator_surface(wid),
+            "Notepad" => self.render_notepad_surface(wid),
+            "Run" => self.render_run_dialog_surface(wid),
+            _ => {}
+        }
+
+        self.compositor.bring_to_front(wid);
+        let b_rect = self.bar.rect(self.compositor.width, self.compositor.height);
+        self.compositor.damage.add_rect(b_rect);
+        wid
+    }
+
+    pub fn render_files_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
             let surf = &mut win.surface;
             let w = surf.width;
             let h = surf.height;
@@ -840,17 +902,424 @@ impl DesktopShell {
             surf.draw_line(0, h as i32 - 24, w as i32, h as i32 - 24, Color::from_hex(0x30363D));
             draw_text(surf, "10 items | 1 item selected (1.2 KB) | Free: 218 MB", 12, h as i32 - 18, Color::TEXT_SECONDARY);
         }
+        self.compositor.damage_window(win_id);
+    }
 
-        // 2. Spawn Nova Terminal on Right (x: 686, y: 32, 560x656 client)
-        let w_term = self.compositor.create_window("Terminal", 686, 32, 560, 656, 0, 1);
-        self.init_terminal();
+    pub fn render_sysmon_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
 
-        // 3. Spawn Nova Store (x: 280, y: 90, 620x440 client)
-        let w_store = self.compositor.create_window("Nova Store", 280, 90, 620, 440, 0, 1);
-        self.render_store_surface(w_store);
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
 
-        // 4. Bring Nova Store to front as active window
-        self.compositor.bring_to_front(w_store);
+            // Header Toolbar (h: 36)
+            surf.fill_rect(Rect::new(0, 0, w, 36), Color::from_hex(0x1E2430));
+            surf.draw_line(0, 36, w as i32, 36, Color::from_hex(0x30363D));
+
+            let badge_r = Rect::new(12, 6, 24, 24);
+            surf.fill_rect(badge_r, Color::from_hex(0x2EA043));
+            draw_text(surf, "M", 20, 10, Color::TEXT_PRIMARY);
+            draw_text(surf, "System Monitor", 44, 10, Color::SUCCESS_GREEN);
+
+            let tabs = ["[ Processes (6) ]", "Performance", "Services"];
+            let mut tx = 180;
+            for (idx, t) in tabs.iter().enumerate() {
+                let tw = (t.len() as u32 * 8) + 12;
+                let tr = Rect::new(tx, 6, tw, 24);
+                let active = idx == 0;
+                surf.fill_rect(tr, if active { Color::from_hex(0x283244) } else { Color::from_hex(0x161B22) });
+                surf.draw_rect_outline(tr, if active { Color::SUCCESS_GREEN } else { Color::from_hex(0x30363D) }, 1);
+                draw_text(surf, t, tx + 6, 10, if active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY });
+                tx += tw as i32 + 8;
+            }
+
+            // Metrics Card (h: 70)
+            let m_rect = Rect::new(10, 44, w.saturating_sub(20), 70);
+            surf.fill_rect(m_rect, Color::NOVA_CARD);
+            surf.draw_rect_outline(m_rect, Color::NOVA_BORDER, 1);
+
+            draw_text(surf, "CPU Load: 8.2% (4 Cores @ 2.40 GHz)", 20, 52, Color::NOVA_ACCENT);
+            surf.fill_rect(Rect::new(20, 68, 220, 8), Color::from_hex(0x21262D));
+            surf.fill_rect(Rect::new(20, 68, 18, 8), Color::SUCCESS_GREEN);
+
+            draw_text(surf, "RAM: 38 MiB / 256 MiB (14.8% Used)", 260, 52, Color::NOVA_ACCENT);
+            surf.fill_rect(Rect::new(260, 68, 220, 8), Color::from_hex(0x21262D));
+            surf.fill_rect(Rect::new(260, 68, 33, 8), Color::from_hex(0x388BFD));
+
+            draw_text(surf, "Storage: /dev/vda 42.1 MB / 512 MB  |  Net: eth0 10.0.2.15 (RX 142KB / TX 98KB)", 20, 88, Color::TEXT_SECONDARY);
+
+            // Process Table
+            let p_y = 124;
+            surf.fill_rect(Rect::new(10, p_y, w.saturating_sub(20), 22), Color::from_hex(0x1B2129));
+            surf.draw_line(10, p_y + 22, w as i32 - 10, p_y + 22, Color::from_hex(0x30363D));
+            draw_text(surf, "PID", 20, p_y + 4, Color::TEXT_SECONDARY);
+            draw_text(surf, "Name", 70, p_y + 4, Color::TEXT_SECONDARY);
+            draw_text(surf, "Privilege", 190, p_y + 4, Color::TEXT_SECONDARY);
+            draw_text(surf, "CPU", 290, p_y + 4, Color::TEXT_SECONDARY);
+            draw_text(surf, "Memory", 350, p_y + 4, Color::TEXT_SECONDARY);
+            draw_text(surf, "Status", 430, p_y + 4, Color::TEXT_SECONDARY);
+
+            let procs = [
+                ("0", "kernel_sched", "Ring 0", "0.1%", "1.2 MB", "Running", Color::SUCCESS_GREEN),
+                ("1", "system_init",  "Ring 3", "0.4%", "2.8 MB", "Supervised", Color::NOVA_ACCENT),
+                ("2", "compositor",   "Ring 0", "6.2%", "14.2 MB", "Active", Color::SUCCESS_GREEN),
+                ("3", "net_daemon",   "Ring 0", "0.5%", "3.1 MB", "Listening", Color::SUCCESS_GREEN),
+                ("4", "storage_mgr",  "Ring 0", "0.8%", "4.6 MB", "Mounted", Color::SUCCESS_GREEN),
+                ("5", "novashell",    "Ring 3", "0.2%", "1.8 MB", "Standby", Color::TEXT_SECONDARY),
+            ];
+
+            let mut ry = p_y + 26;
+            for (pid, name, ring, cpu, mem, status, stat_col) in procs {
+                let row_r = Rect::new(10, ry - 2, w.saturating_sub(20), 22);
+                if pid == "2" {
+                    surf.fill_rect(row_r, Color::from_hex(0x283244));
+                    surf.draw_rect_outline(row_r, Color::SUCCESS_GREEN, 1);
+                }
+                draw_text(surf, pid, 20, ry + 2, Color::TEXT_PRIMARY);
+                draw_text(surf, name, 70, ry + 2, Color::TEXT_PRIMARY);
+                draw_text(surf, ring, 190, ry + 2, Color::NOVA_ACCENT);
+                draw_text(surf, cpu, 290, ry + 2, Color::TEXT_PRIMARY);
+                draw_text(surf, mem, 350, ry + 2, Color::TEXT_SECONDARY);
+                draw_text(surf, status, 430, ry + 2, stat_col);
+                ry += 24;
+            }
+
+            // Bottom Footer
+            let foot_y = h as i32 - 28;
+            surf.fill_rect(Rect::new(0, foot_y, w, 28), Color::from_hex(0x161B22));
+            surf.draw_line(0, foot_y, w as i32, foot_y, Color::from_hex(0x30363D));
+
+            let end_btn = Rect::new(w as i32 - 130, foot_y + 4, 116, 20);
+            surf.fill_rect(end_btn, Color::from_hex(0x4C1D24));
+            surf.draw_rect_outline(end_btn, Color::from_hex(0xF85149), 1);
+            draw_text(surf, "End Task (9)", w as i32 - 120, foot_y + 6, Color::from_hex(0xF85149));
+
+            draw_text(surf, "6 Processes  |  Preemptive Scheduler 1000 Hz  |  Uptime: 00:01:24", 14, foot_y + 6, Color::TEXT_SECONDARY);
+        }
+        self.compositor.damage_window(win_id);
+    }
+
+    pub fn render_settings_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
+
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
+
+            // Header (h: 36)
+            surf.fill_rect(Rect::new(0, 0, w, 36), Color::from_hex(0x1E2430));
+            surf.draw_line(0, 36, w as i32, 36, Color::from_hex(0x30363D));
+
+            let badge_r = Rect::new(12, 6, 24, 24);
+            surf.fill_rect(badge_r, Color::from_hex(0x8B949E));
+            draw_text(surf, "S", 20, 10, Color::TEXT_PRIMARY);
+            draw_text(surf, "Settings", 44, 10, Color::TEXT_PRIMARY);
+
+            // Left Sidebar (w: 140)
+            let side_w = 140;
+            surf.fill_rect(Rect::new(0, 37, side_w, h.saturating_sub(37)), Color::from_hex(0x161B22));
+            surf.draw_line(side_w as i32, 37, side_w as i32, h as i32, Color::from_hex(0x30363D));
+
+            let categories = [
+                "System",
+                "Display",
+                "Personalization",
+                "Network & Internet",
+                "Accounts & Security",
+                "About NovaOS",
+            ];
+            let mut cy = 48;
+            for (idx, cat) in categories.iter().enumerate() {
+                let is_sel = idx == 0;
+                let cr = Rect::new(6, cy - 2, side_w - 12, 26);
+                if is_sel {
+                    surf.fill_rect(cr, Color::from_hex(0x283244));
+                    surf.draw_rect_outline(cr, Color::NOVA_ACCENT, 1);
+                }
+                draw_text(surf, cat, 14, cy + 2, if is_sel { Color::NOVA_ACCENT } else { Color::TEXT_SECONDARY });
+                cy += 32;
+            }
+
+            // Right Settings Details
+            let rx = side_w as i32 + 16;
+            draw_text(surf, "System & Display Settings", rx, 48, Color::TEXT_PRIMARY);
+            draw_text(surf, "Manage hardware resolution, visual theme, and privilege rings", rx, 68, Color::TEXT_SECONDARY);
+            surf.draw_line(rx, 86, w as i32 - 16, 86, Color::from_hex(0x30363D));
+
+            // Display card
+            let c1 = Rect::new(rx, 96, w.saturating_sub(side_w + 32), 60);
+            surf.fill_rect(c1, Color::NOVA_CARD);
+            surf.draw_rect_outline(c1, Color::NOVA_BORDER, 1);
+            draw_text(surf, "Display Resolution & Framebuffer", rx + 12, 106, Color::NOVA_ACCENT);
+            draw_text(surf, "1280 x 800 @ 60 Hz  |  UEFI 2.10 GOP Linear Framebuffer (32bpp)", rx + 12, 128, Color::TEXT_SECONDARY);
+
+            // Theme card
+            let c2 = Rect::new(rx, 166, w.saturating_sub(side_w + 32), 60);
+            surf.fill_rect(c2, Color::NOVA_CARD);
+            surf.draw_rect_outline(c2, Color::NOVA_BORDER, 1);
+            draw_text(surf, "Appearance & Personalization", rx + 12, 176, Color::NOVA_ACCENT);
+            draw_text(surf, "Windows 11 Mica Dark Mode [Active]  |  Accent: Azure Cyan (#0078D4)", rx + 12, 198, Color::TEXT_SECONDARY);
+
+            // Security card
+            let c3 = Rect::new(rx, 236, w.saturating_sub(side_w + 32), 60);
+            surf.fill_rect(c3, Color::NOVA_CARD);
+            surf.draw_rect_outline(c3, Color::NOVA_BORDER, 1);
+            draw_text(surf, "Kernel Security & Isolation", rx + 12, 246, Color::SUCCESS_GREEN);
+            draw_text(surf, "Ring 0 / Ring 3 Privilege Rings, NX Bit, CR0.WP, SMEP, SMAP [ENFORCED]", rx + 12, 268, Color::TEXT_SECONDARY);
+
+            // Bottom About
+            draw_text(surf, "NovaOS Apex v1.0.0 (x86_64 UEFI Freestanding Rust)", rx, h as i32 - 24, Color::TEXT_SECONDARY);
+        }
+        self.compositor.damage_window(win_id);
+    }
+
+    pub fn render_device_manager_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
+
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
+
+            // Header (h: 36)
+            surf.fill_rect(Rect::new(0, 0, w, 36), Color::from_hex(0x1E2430));
+            surf.draw_line(0, 36, w as i32, 36, Color::from_hex(0x30363D));
+
+            let badge_r = Rect::new(12, 6, 24, 24);
+            surf.fill_rect(badge_r, Color::from_hex(0x56D364));
+            draw_text(surf, "D", 20, 10, Color::TEXT_PRIMARY);
+            draw_text(surf, "Device Manager", 44, 10, Color::SUCCESS_GREEN);
+
+            // Toolbar
+            let tb = ["[ Scan for Changes ]", "Action", "View", "Help"];
+            let mut tbx = 180;
+            for t in tb {
+                let tw = (t.len() as u32 * 8) + 12;
+                let tr = Rect::new(tbx, 6, tw, 24);
+                surf.fill_rect(tr, Color::from_hex(0x161B22));
+                surf.draw_rect_outline(tr, Color::from_hex(0x30363D), 1);
+                draw_text(surf, t, tbx + 6, 10, Color::TEXT_SECONDARY);
+                tbx += tw as i32 + 8;
+            }
+
+            // Tree View Container
+            let tree_r = Rect::new(12, 46, w.saturating_sub(24), h.saturating_sub(74));
+            surf.fill_rect(tree_r, Color::NOVA_CARD);
+            surf.draw_rect_outline(tree_r, Color::NOVA_BORDER, 1);
+
+            let tree_items = [
+                ("[-] NOVAOS-APEX-PC (x86_64 UEFI Machine)", Color::TEXT_PRIMARY),
+                ("    [-] System Core & Interrupt Controllers", Color::NOVA_ACCENT),
+                ("        ├─ APIC 8259 Interrupt Controller (IRQ 0-15)", Color::TEXT_SECONDARY),
+                ("        ├─ PIT 8254 Programmable Timer (1000 Hz)", Color::TEXT_SECONDARY),
+                ("        └─ 16550 UART Serial Controller (COM1 0x3F8)", Color::TEXT_SECONDARY),
+                ("    [-] Disk Drives & Storage Buses", Color::NOVA_ACCENT),
+                ("        ├─ AHCI SATA 1.3 48-bit LBA DMA PRDT (/dev/sda)", Color::TEXT_SECONDARY),
+                ("        ├─ NVMe 1.4 High-Speed Circular Queue (/dev/nvme0n1)", Color::TEXT_SECONDARY),
+                ("        └─ VirtIO Block Storage Controller (/dev/vda)", Color::TEXT_SECONDARY),
+                ("    [-] Universal Serial Bus (USB 3.0)", Color::NOVA_ACCENT),
+                ("        ├─ xHCI Host Controller (Root Hub)", Color::TEXT_SECONDARY),
+                ("        ├─ USB HID Keyboard Interrupt In (Endpoint 1)", Color::TEXT_SECONDARY),
+                ("        └─ USB HID Mouse Interrupt In (Endpoint 2)", Color::TEXT_SECONDARY),
+                ("    [-] Display & Audio Adapters", Color::NOVA_ACCENT),
+                ("        ├─ UEFI GOP 1280x800 Linear Framebuffer (32bpp)", Color::TEXT_SECONDARY),
+                ("        └─ Intel High Definition Audio (16-bit 48kHz Stereo)", Color::TEXT_SECONDARY),
+            ];
+
+            let mut ty = 54;
+            for (line, col) in tree_items {
+                draw_text(surf, line, 20, ty, col);
+                ty += 18;
+            }
+
+            // Status bar
+            let foot_y = h as i32 - 24;
+            surf.fill_rect(Rect::new(0, foot_y, w, 24), Color::from_hex(0x161B22));
+            surf.draw_line(0, foot_y, w as i32, foot_y, Color::from_hex(0x30363D));
+            draw_text(surf, "14 Device Nodes Enumerated | 0 Hardware Resource Conflicts", 14, foot_y + 4, Color::SUCCESS_GREEN);
+        }
+        self.compositor.damage_window(win_id);
+    }
+
+    pub fn render_calculator_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
+
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
+
+            // Header (h: 36)
+            surf.fill_rect(Rect::new(0, 0, w, 36), Color::from_hex(0x1E2430));
+            surf.draw_line(0, 36, w as i32, 36, Color::from_hex(0x30363D));
+
+            let badge_r = Rect::new(12, 6, 24, 24);
+            surf.fill_rect(badge_r, Color::from_hex(0xD29922));
+            draw_text(surf, "C", 20, 10, Color::TEXT_PRIMARY);
+            draw_text(surf, "Calculator", 44, 10, Color::TEXT_PRIMARY);
+
+            // LCD Display Card
+            let lcd_r = Rect::new(12, 44, w.saturating_sub(24), 84);
+            surf.fill_rect(lcd_r, Color::from_hex(0x0D1117));
+            surf.draw_rect_outline(lcd_r, Color::from_hex(0x30363D), 1);
+
+            draw_text(surf, "42", w as i32 - 40, 52, Color::NOVA_ACCENT);
+            draw_text(surf, "HEX:  0x002A", 20, 80, Color::TEXT_SECONDARY);
+            draw_text(surf, "DEC:  42", 130, 80, Color::TEXT_PRIMARY);
+            draw_text(surf, "BIN:  0010 1010", 20, 102, Color::TEXT_SECONDARY);
+
+            // Keypad
+            let buttons = [
+                ["C", "(", ")", "/"],
+                ["7", "8", "9", "*"],
+                ["4", "5", "6", "-"],
+                ["1", "2", "3", "+"],
+                ["0", ".", "+/-", "="],
+            ];
+
+            let start_y = 138;
+            let bw = (w.saturating_sub(24 + 18)) / 4;
+            let bh = (h.saturating_sub(start_y as u32 + 12 + 20)) / 5;
+
+            for (row_idx, row) in buttons.iter().enumerate() {
+                for (col_idx, &label) in row.iter().enumerate() {
+                    let bx = 12 + col_idx as i32 * (bw as i32 + 6);
+                    let by = start_y + row_idx as i32 * (bh as i32 + 4);
+                    let btn_rect = Rect::new(bx, by, bw, bh);
+
+                    let is_equal = label == "=";
+                    let is_op = label == "/" || label == "*" || label == "-" || label == "+";
+                    let bg = if is_equal {
+                        Color::from_hex(0x0078D4)
+                    } else if is_op {
+                        Color::from_hex(0x21262D)
+                    } else {
+                        Color::from_hex(0x161B22)
+                    };
+
+                    surf.fill_rect(btn_rect, bg);
+                    surf.draw_rect_outline(btn_rect, Color::from_hex(0x30363D), 1);
+                    draw_text(surf, label, bx + (bw as i32 / 2) - 4, by + (bh as i32 / 2) - 8, Color::TEXT_PRIMARY);
+                }
+            }
+        }
+        self.compositor.damage_window(win_id);
+    }
+
+    pub fn render_notepad_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
+
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
+
+            // Header (h: 36)
+            surf.fill_rect(Rect::new(0, 0, w, 36), Color::from_hex(0x1E2430));
+            surf.draw_line(0, 36, w as i32, 36, Color::from_hex(0x30363D));
+
+            let badge_r = Rect::new(12, 6, 24, 24);
+            surf.fill_rect(badge_r, Color::from_hex(0x79C0FF));
+            draw_text(surf, "N", 20, 10, Color::TEXT_PRIMARY);
+            draw_text(surf, "Notepad — Untitled.txt *", 44, 10, Color::TEXT_PRIMARY);
+
+            // Menu Bar
+            surf.fill_rect(Rect::new(0, 37, w, 24), Color::from_hex(0x161B22));
+            surf.draw_line(0, 61, w as i32, 61, Color::from_hex(0x30363D));
+            draw_text(surf, "File    Edit    Format    View    Help", 14, 42, Color::TEXT_SECONDARY);
+
+            // Gutter (w: 36)
+            let gutter_w = 36;
+            surf.fill_rect(Rect::new(0, 62, gutter_w, h.saturating_sub(62 + 24)), Color::from_hex(0x1B2129));
+            surf.draw_line(gutter_w as i32, 62, gutter_w as i32, h as i32 - 24, Color::from_hex(0x30363D));
+
+            // Editor Canvas
+            let canvas_r = Rect::new(gutter_w as i32 + 1, 62, w.saturating_sub(gutter_w + 1), h.saturating_sub(62 + 24));
+            surf.fill_rect(canvas_r, Color::from_hex(0x0D1117));
+
+            let lines = [
+                "// NovaOS Apex Freestanding Text Editor",
+                "Welcome to NovaOS Apex — Windows 11-Class Operating System!",
+                "",
+                "Features:",
+                "  - Freestanding Rust kernel (#![no_std], #![no_main])",
+                "  - Ring 3 userspace isolation with 21 system calls",
+                "  - Full graphical window compositor and desktop shell",
+                "  - Cryptographically signed .nvp package store",
+                "",
+                "Press Ctrl+S to save changes to NovaFS.",
+            ];
+
+            let mut ey = 70;
+            for (idx, line) in lines.iter().enumerate() {
+                // Line number
+                let mut num_buf = [0u8; 4];
+                let mut n = (idx + 1) as u32;
+                let mut i = 0;
+                while n > 0 && i < 3 {
+                    num_buf[i] = b'0' + (n % 10) as u8;
+                    n /= 10;
+                    i += 1;
+                }
+                num_buf[..i].reverse();
+                let num_str = core::str::from_utf8(&num_buf[..i]).unwrap_or(" ");
+                draw_text(surf, num_str, 12, ey, Color::TEXT_SECONDARY);
+
+                let col = if idx == 0 {
+                    Color::TEXT_SECONDARY
+                } else if idx == 1 {
+                    Color::NOVA_ACCENT
+                } else {
+                    Color::TEXT_PRIMARY
+                };
+                draw_text(surf, line, gutter_w as i32 + 12, ey, col);
+                ey += 20;
+            }
+
+            // Status bar
+            let foot_y = h as i32 - 24;
+            surf.fill_rect(Rect::new(0, foot_y, w, 24), Color::from_hex(0x161B22));
+            surf.draw_line(0, foot_y, w as i32, foot_y, Color::from_hex(0x30363D));
+            draw_text(surf, "Ln 10, Col 40  |  100%  |  Windows (CRLF)  |  UTF-8", 14, foot_y + 4, Color::TEXT_SECONDARY);
+        }
+        self.compositor.damage_window(win_id);
+    }
+
+    pub fn render_run_dialog_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
+
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
+
+            draw_text(surf, "Type the name of a program, folder, or file,", 16, 16, Color::TEXT_PRIMARY);
+            draw_text(surf, "and NovaOS will open it for you.", 16, 36, Color::TEXT_SECONDARY);
+
+            draw_text(surf, "Open:", 16, 68, Color::TEXT_PRIMARY);
+            let input_r = Rect::new(60, 62, w.saturating_sub(76), 26);
+            surf.fill_rect(input_r, Color::from_hex(0x0D1117));
+            surf.draw_rect_outline(input_r, Color::NOVA_ACCENT, 1);
+            draw_text(surf, "novashell", 68, 68, Color::TEXT_PRIMARY);
+
+            let ok_r = Rect::new(w as i32 - 210, h as i32 - 36, 60, 24);
+            surf.fill_rect(ok_r, Color::from_hex(0x283244));
+            surf.draw_rect_outline(ok_r, Color::NOVA_ACCENT, 1);
+            draw_text(surf, "OK", ok_r.x + 22, ok_r.y + 5, Color::TEXT_PRIMARY);
+
+            let cancel_r = Rect::new(w as i32 - 140, h as i32 - 36, 60, 24);
+            surf.fill_rect(cancel_r, Color::from_hex(0x21262D));
+            surf.draw_rect_outline(cancel_r, Color::from_hex(0x30363D), 1);
+            draw_text(surf, "Cancel", cancel_r.x + 8, cancel_r.y + 5, Color::TEXT_SECONDARY);
+
+            let browse_r = Rect::new(w as i32 - 70, h as i32 - 36, 60, 24);
+            surf.fill_rect(browse_r, Color::from_hex(0x21262D));
+            surf.draw_rect_outline(browse_r, Color::from_hex(0x30363D), 1);
+            draw_text(surf, "Browse", browse_r.x + 6, browse_r.y + 5, Color::TEXT_SECONDARY);
+        }
+        self.compositor.damage_window(win_id);
     }
 
     pub fn init_terminal(&mut self) {

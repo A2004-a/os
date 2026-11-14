@@ -198,7 +198,9 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                 let bytes = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };
                 if let Ok(s) = core::str::from_utf8(bytes) {
                     serial::write_str(s);
-                    crate::drivers::console::write_str(s);
+                    if !crate::drivers::console::is_graphics_active() {
+                        crate::drivers::console::write_str(s);
+                    }
                 } else {
                     for &b in bytes {
                         serial::write_byte(b);

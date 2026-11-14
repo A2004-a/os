@@ -221,33 +221,43 @@ impl Window {
             // 5. App Icon Badge
             let icon_color = match self.title.as_str() {
                 "Nova Files" => Color::from_hex(0x388BFD),
-                "Nova System Monitor" => Color::from_hex(0x2EA043),
-                "Nova Settings" => Color::from_hex(0x8B949E),
-                "Nova Package Manager" => Color::from_hex(0xA371F7),
-                "Nova Terminal" => Color::from_hex(0x58A6FF),
+                "Nova System Monitor" | "System Monitor" => Color::from_hex(0x2EA043),
+                "Nova Settings" | "Settings" => Color::from_hex(0x8B949E),
+                "Nova Package Manager" | "Nova Store" | "Pkg Store" => Color::from_hex(0xA371F7),
+                "Nova Terminal" | "Terminal" => Color::from_hex(0x58A6FF),
                 "NovaOS Setup Wizard" => Color::from_hex(0x1F6FEB),
                 "Nova Recovery Center" => Color::from_hex(0xF0883E),
-                "Nova Device Manager" => Color::from_hex(0x56D364),
+                "Nova Device Manager" | "Device Manager" => Color::from_hex(0x56D364),
+                "Calculator" => Color::from_hex(0xD29922),
+                "Notepad" => Color::from_hex(0x79C0FF),
                 _ => Color::NOVA_ACCENT,
             };
             let icon_rect = Rect::new(self.rect.x + 8, self.rect.y + 8, 16, 16);
             target.fill_rect(icon_rect, icon_color);
             let icon_symbol = match self.title.as_str() {
                 "Nova Files" => "F",
-                "Nova System Monitor" => "M",
-                "Nova Settings" => "S",
-                "Nova Package Manager" => "P",
-                "Nova Terminal" => ">",
+                "Nova System Monitor" | "System Monitor" => "M",
+                "Nova Settings" | "Settings" => "S",
+                "Nova Package Manager" | "Nova Store" | "Pkg Store" => "P",
+                "Nova Terminal" | "Terminal" => ">",
                 "NovaOS Setup Wizard" => "W",
                 "Nova Recovery Center" => "R",
-                "Nova Device Manager" => "D",
+                "Nova Device Manager" | "Device Manager" => "D",
+                "Calculator" => "C",
+                "Notepad" => "N",
                 _ => "N",
             };
             draw_text(target, icon_symbol, icon_rect.x + 4, icon_rect.y, Color::TEXT_PRIMARY);
 
-            // 6. Title Text
+            // 6. Title Text (truncated if narrow to avoid overlapping caption buttons)
             let text_color = if self.active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY };
-            draw_text(target, &self.title, self.rect.x + 32, self.rect.y + 8, text_color);
+            let max_chars = ((self.rect.width.saturating_sub(130)) / 8).max(4) as usize;
+            let display_title = if self.title.len() > max_chars {
+                &self.title[..max_chars]
+            } else {
+                &self.title
+            };
+            draw_text(target, display_title, self.rect.x + 32, self.rect.y + 8, text_color);
 
             // 7. Caption Buttons (Windows 11 style)
             if let Some(mbtn) = self.minimize_button_rect() {

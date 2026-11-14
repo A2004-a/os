@@ -249,9 +249,6 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL WARN] Some Windows 11 features did not pass verification.\n");
     }
 
-    // Refresh and cleanly composite the primary Windows 11 desktop after all boot tests finish
-    graphics::redraw_all();
-
     // 17. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
@@ -259,6 +256,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // 14. Run Milestone 4 Verification Test Suite & Spawn PID 1
     static INIT_ELF: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/novaos-apex-init");
     syscall::tests::run_m4_verification_suite(INIT_ELF);
+
+    // Refresh and cleanly composite the primary Windows 11 desktop after all boot tests & init finish
+    graphics::redraw_all();
 
     // 13. Enable Hardware Interrupts & Handoff to Preemptive Multitasking
     serial::write_str("[KERNEL] Enabling hardware interrupts via STI and entering multitasking...\n");

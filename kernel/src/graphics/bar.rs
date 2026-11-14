@@ -139,21 +139,29 @@ impl NovaBar {
                 "Terminal" | "Nova Terminal" => Color::from_hex(0x58A6FF),
                 "System Monitor" | "Nova System Monitor" => Color::from_hex(0x2EA043),
                 "Settings" | "Nova Settings" => Color::from_hex(0x8B949E),
-                "Calculator" => Color::from_hex(0xA371F7),
-                "Notepad" => Color::from_hex(0xD29922),
+                "Nova Store" | "Package Manager" | "Pkg Store" => Color::from_hex(0x8764B8),
+                "Device Manager" | "Nova Device Manager" => Color::from_hex(0x56D364),
+                "Calculator" => Color::from_hex(0xD29922),
+                "Notepad" => Color::from_hex(0x79C0FF),
                 _ => Color::NOVA_ACCENT,
             };
             let icon_rect = Rect::new(app_x + 8, app_y + 9, 14, 14);
             target.fill_rect(icon_rect, icon_col);
 
-            // Window title snippet (max 12 chars)
+            // Window title snippet (cleanly formatted for 124px pill)
+            let display_name = match win.title.as_str() {
+                "System Monitor" | "Nova System Monitor" => "Sys Monitor",
+                "Device Manager" | "Nova Device Manager" => "Device Mgr",
+                "Package Manager" => "Nova Store",
+                _ => &win.title,
+            };
             let mut snippet = [b' '; 12];
-            let bytes = win.title.as_bytes();
+            let bytes = display_name.as_bytes();
             let copy_len = bytes.len().min(12);
             snippet[..copy_len].copy_from_slice(&bytes[..copy_len]);
             let label = core::str::from_utf8(&snippet[..copy_len]).unwrap_or("App");
             let text_col = if is_active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY };
-            draw_text(target, label, app_x + 28, app_y + 8, text_col);
+            draw_text(target, label, app_x + 26, app_y + 8, text_col);
 
             app_x += app_button_w + 8;
         }
@@ -233,7 +241,7 @@ impl NovaBar {
         }
 
         // 3. Check running application pills
-        let app_button_w = 110;
+        let app_button_w = 124;
         let app_button_h = 32;
         let total_apps_w = (windows.len() as i32) * (app_button_w + 8);
         let mut app_x = (screen_w as i32 - total_apps_w) / 2;
