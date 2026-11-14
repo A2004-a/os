@@ -61,6 +61,9 @@ extern "C" {
     fn isr32(); fn isr33(); fn isr34(); fn isr35(); fn isr36(); fn isr37(); fn isr38(); fn isr39();
     fn isr40(); fn isr41(); fn isr42(); fn isr43(); fn isr44(); fn isr45(); fn isr46(); fn isr47();
 
+    // System call vector (128 / 0x80)
+    fn isr128();
+
     fn isr_default();
 }
 
@@ -125,6 +128,9 @@ pub fn init() {
         entries[45].set_handler(isr45 as *const () as usize, 0, 0); // IRQ 13: FPU
         entries[46].set_handler(isr46 as *const () as usize, 0, 0); // IRQ 14: Primary ATA
         entries[47].set_handler(isr47 as *const () as usize, 0, 0); // IRQ 15: Secondary ATA
+
+        // System call gate: Vector 128 (0x80) with DPL=3 for Ring 3 invocation
+        entries[128].set_handler(isr128 as *const () as usize, 0, 3);
 
         // Load IDTR via lidt instruction
         let idt_descriptor = DescriptorTablePointer {
@@ -201,6 +207,8 @@ ISR_NOERRCODE 44
 ISR_NOERRCODE 45
 ISR_NOERRCODE 46
 ISR_NOERRCODE 47
+
+ISR_NOERRCODE 128
 
 .global isr_default
 isr_default:

@@ -9,9 +9,12 @@ use novaos_apex_kernel::arch;
 use novaos_apex_kernel::arch::x86_64::instructions::{hlt, sti};
 use novaos_apex_kernel::boot::BootInfo;
 use novaos_apex_kernel::drivers;
+use novaos_apex_kernel::ipc;
 use novaos_apex_kernel::memory;
 use novaos_apex_kernel::objects;
+use novaos_apex_kernel::scheduler;
 use novaos_apex_kernel::serial;
+use novaos_apex_kernel::syscall;
 
 const KERNEL_STACK_SIZE: usize = 64 * 1024; // 64 KiB kernel stack
 
@@ -38,10 +41,10 @@ pub extern "C" fn _start(boot_info: *const BootInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
-    // 1. Initial Serial Milestone 3 Greeting
+    // 1. Initial Serial Milestone 4 Greeting
     serial::write_str("\nNovaOS Apex started\n");
     serial::write_str("=======================================================\n");
-    serial::write_str("   NovaOS Apex — Bare-Metal Kernel Core (Milestone 3)  \n");
+    serial::write_str("   NovaOS Apex — Bare-Metal Kernel Core (Milestone 4)  \n");
     serial::write_str("=======================================================\n");
 
     // 2. Validate BootInfo from UEFI Handoff
@@ -108,12 +111,8 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     serial::write_str("\n[KERNEL] Initializing Milestone 3 Device Drivers...\n");
     drivers::init(boot_info);
 
-    // 7. Run Milestone 3 Device Driver Verification Suite
+    // 8. Run Milestone 3 Device Driver Verification Suite
     let m3_drivers_passed = drivers::tests::run_all_tests();
-
-    // 8. Enable Hardware Interrupts
-    serial::write_str("[KERNEL] Enabling hardware interrupts via STI...\n");
-    sti();
 
     if m1_passed && m2_mem_passed && m2_obj_passed && m3_drivers_passed {
         serial::write_str("\n[MILESTONE 3 VERIFIED] All 10 first-party device drivers (UART, GOP,\n");
@@ -123,9 +122,22 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 3 WARN] Driver verification encountered anomalies.\n");
     }
 
-    // 9. Stable CPU Halt Loop
-    serial::write_str("[KERNEL] Entering stable CPU halt state. Awaiting hardware events...\n");
-    hlt();
+    // 9. Initialize Scheduler & IPC Subsystems
+    scheduler::init();
+    ipc::init();
+
+    // 10. Run Milestone 4 Verification Test Suite & Spawn PID 1
+    static INIT_ELF: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/novaos-apex-init");
+    syscall::tests::run_m4_verification_suite(INIT_ELF);
+
+    // 11. Enable Hardware Interrupts & Handoff to Preemptive Multitasking
+    serial::write_str("[KERNEL] Enabling hardware interrupts via STI and entering multitasking...\n");
+    sti();
+
+    // 12. Stable CPU Halt Loop (scheduler idle thread also halts when idle)
+    loop {
+        hlt();
+    }
 }
 
 fn print_u64(mut n: u64) {

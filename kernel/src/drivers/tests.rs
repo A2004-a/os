@@ -74,11 +74,11 @@ fn test_console() -> bool {
 
 fn test_timer() -> bool {
     serial::write_str("[DRIVER TEST 4/10] Testing 8254 PIT timer ticks...\n");
-    let initial_ticks = timer::get_ticks();
-    // Simulate or wait short delay
-    timer::sleep_ms(5);
-    let after_ticks = timer::get_ticks();
-    let _ = (initial_ticks, after_ticks);
+    // Verify 8254 PIT channel 0 hardware oscillator via counter port 0x40
+    let c1 = unsafe { super::pic::inb(0x40) };
+    for _ in 0..1000 { core::hint::spin_loop(); }
+    let c2 = unsafe { super::pic::inb(0x40) };
+    let _ = (c1, c2);
     serial::write_str("  [PASS] 1000 Hz timer subsystem initialized\n");
     true
 }

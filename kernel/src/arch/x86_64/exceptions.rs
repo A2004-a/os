@@ -90,12 +90,16 @@ pub extern "C" fn handle_exception(ctx: &mut ExceptionContext) {
     // Hardware IRQs Routing (Vectors 32..47)
     if vector == 32 {
         crate::drivers::timer::on_timer_tick();
+        crate::scheduler::on_timer_tick(ctx);
         return;
     } else if vector == 33 {
         crate::drivers::keyboard::on_keyboard_irq();
         return;
     } else if vector == 44 {
         crate::drivers::mouse::on_mouse_irq();
+        return;
+    } else if vector == 128 {
+        crate::syscall::handle_syscall(ctx);
         return;
     } else if vector >= 32 && vector <= 47 {
         crate::drivers::pic::send_eoi((vector - 32) as u8);
@@ -163,11 +167,12 @@ pub extern "C" fn handle_exception(ctx: &mut ExceptionContext) {
         TestMode::DoubleFault if vector == 8 => {
             let stack_top = super::gdt::get_double_fault_stack_top();
             let stack_bottom = stack_top - (super::gdt::DOUBLE_FAULT_STACK_SIZE as u64);
-            let on_ist1 = ctx.rsp >= stack_bottom && ctx.rsp <= stack_top;
+            let ctx_addr = ctx as *const _ as u64;
+            let on_ist1 = ctx_addr >= stack_bottom && ctx_addr <= stack_top;
 
             serial::write_str("\n[EXCEPTION DIAGNOSTIC] #DF (Double Fault) caught successfully!\n");
-            serial::write_str("  Active Stack (RSP): 0x");
-            print_hex_u64(ctx.rsp);
+            serial::write_str("  Active Stack (IST1): 0x");
+            print_hex_u64(ctx_addr);
             serial::write_str("\n  Dedicated IST1 Emergency Stack Range: [0x");
             print_hex_u64(stack_bottom);
             serial::write_str(" - 0x");
@@ -180,7 +185,19 @@ pub extern "C" fn handle_exception(ctx: &mut ExceptionContext) {
                 serial::write_str("NO (Warning: IST1 stack mismatch)\n");
             }
 
-            // Return from controlled double fault invocation
+            // Since `int 8` is a software interrupt and did not push a hardware error code,
+            // the hardware frame on stack was shifted by 8 bytes. Fix up the return frame:
+            let real_rip = ctx.error_code;
+            let real_cs = ctx.rip;
+            let real_rflags = ctx.cs;
+            let real_rsp = ctx.rflags;
+            let real_ss = ctx.rsp;
+
+            ctx.rip = real_rip;
+            ctx.cs = real_cs;
+            ctx.rflags = real_rflags;
+            ctx.rsp = real_rsp;
+            ctx.ss = real_ss;
             return;
         }
 

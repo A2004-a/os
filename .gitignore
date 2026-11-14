@@ -5,6 +5,7 @@
 *.img
 *.iso
 *.bin
+*.fd
 *.log
 .gdb_history
 .DS_Store

@@ -72,3 +72,11 @@ impl CapabilityRights {
         Self(self.0 & other.0)
     }
 }
+
+impl core::ops::BitOr for CapabilityRights {
+    type Output = Self;
+    #[inline(always)]
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}

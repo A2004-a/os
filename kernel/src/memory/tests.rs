@@ -102,7 +102,7 @@ fn test_virtual_memory_mapper() -> bool {
     serial::write_str("[MEM TEST 2/4] Testing 4-level paging mapper/unmapper...\n");
 
     let mapper = get_mapper();
-    let test_virt = VirtAddr::new(0xFFFF_8000_3000_0000);
+    let test_virt = VirtAddr::new(0xFFFF_8002_0000_0000);
     let test_frame = match alloc_frame() {
         Some(f) => f,
         None => return false,

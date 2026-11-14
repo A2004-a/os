@@ -45,3 +45,21 @@ pub fn write_str(s: &str) {
         write_byte(b);
     }
 }
+
+pub fn write_hex(mut n: u64) {
+    if n == 0 {
+        write_str("0");
+        return;
+    }
+    let hex_chars = b"0123456789ABCDEF";
+    let mut buf = [0u8; 16];
+    let mut i = 0;
+    while n > 0 {
+        buf[i] = hex_chars[(n & 0x0F) as usize];
+        n >>= 4;
+        i += 1;
+    }
+    for j in (0..i).rev() {
+        write_byte(buf[j]);
+    }
+}

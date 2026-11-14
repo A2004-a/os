@@ -78,13 +78,13 @@ fn test_invalid_opcode() -> bool {
 }
 
 fn test_page_fault() -> bool {
-    serial::write_str("[TEST 3/4] Triggering deliberate Page Fault (#PF at 0xDEADBEEF0000)...\n");
+    serial::write_str("[TEST 3/4] Triggering deliberate Page Fault (#PF at 0x7EADBEEF0000)...\n");
     unsafe {
         ACTIVE_TEST = TestMode::PageFault;
         TEST_RESULT_PASSED = false;
 
         asm!(
-            "mov rdx, 0x0000DEADBEEF0000",
+            "mov rdx, 0x00007EADBEEF0000",
             "mov rax, [rdx]", // 3 bytes: 48 8B 02
             out("rax") _,
             out("rdx") _,

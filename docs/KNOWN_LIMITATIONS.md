@@ -6,41 +6,22 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ---
 
-## Current Status: Milestone 3 (Interrupts, Devices & Drivers)
+## Current Status: Milestone 4 (Scheduling, Processes & Ring 3)
 
-### 1. CPU & Architecture
-- **Multicore (SMP):** Single-core execution only (Bootstrap Processor / BSP). Application Processors (APs) are not yet initialized via APIC INIT-SIPI sequences (scheduled for Milestone 11).
-- **Microcode & Thermal:** CPU thermal throttling and dynamic frequency scaling (P-states/C-states) are unmanaged.
-- **Hardware Interrupts Active:** 8259 PIC remapped (IRQs 0..15 -> Vectors 32..47) and hardware interrupts unmasked for PIT Timer (IRQ 0), PS/2 Keyboard (IRQ 1), and PS/2 Mouse (IRQ 12).
+### 1. CPU, Scheduling & Synchronization
+- **Multicore (SMP):** Single-core execution only (Bootstrap Processor / BSP). Multi-core scheduling across APs is scheduled for Milestone 11.
+- **Preemptive Multi-Priority Scheduler:** Operational with 5 priority bands (Idle, Low, Normal, High, Realtime), timer-driven preemption on IRQ 0 (1000 Hz), round-robin time-slicing, and sleep queue management.
+- **Synchronization Primitives:** `SpinLock<T>` with interrupt-disabling (`cli`/`sti`) and deadlock detection (>10,000,000 spin cycles), and `KernelEvent` signaling.
 
-### 2. Firmware & Boot
-- **UEFI Only:** Legacy BIOS / Master Boot Record (CSM) booting is explicitly unsupported. Requires 64-bit UEFI firmware (v2.0+).
-- **Boot Handoff:** UEFI ExitBootServices transfers execution cleanly with active GOP framebuffer, ACPI 2.0/1.0 RSDP, and UEFI memory map descriptors passed via `BootInfo`.
+### 2. Processes & Ring 3 Userspace
+- **Address Space Isolation:** Distinct 4-level paging directory per process with clean kernel higher-half mappings and user memory separated above `0x4000_0000`.
+- **ELF64 Executable Loader:** Freestanding 64-bit ELF parser mapping `PT_LOAD` segments, zeroing BSS, and allocating 16 KiB user stack at `0x7FFF_FFFF_0000`.
+- **PID 1 Init Daemon:** Running in Ring 3 userspace (`novaos-apex-init`) with full user-mode memory isolation and hardware privilege enforcement.
 
-### 3. Memory & Paging
-- **4-Level Paging Active:** x86_64 PML4, PDPT, PD, and PT are operational with 1 GiB lower identity mapping and 1 GiB higher-half direct physical mapping at `0xFFFF_8000_0000_0000`.
-- **Physical Frame Allocator:** Bitmap-backed allocator manages up to 4 GiB physical RAM at 4 KiB frame granularity, parsing UEFI memory descriptors and enforcing double-free rejection.
-- **Kernel Dynamic Heap:** `GlobalAlloc` slab/block allocator with 2 MiB initial buffer, canary guard checks (`0xCAFEBABE...`), and double-free detection.
-- **Hardware Stack Guard Pages:** Kernel stacks feature unmapped bottom guard pages (`PAGE_PRESENT` clear) for hardware stack overflow protection.
+### 3. System Calls & IPC
+- **Native System Call Engine:** IDT Vector 128 (0x80, DPL=3) operational with strict user pointer and buffer boundary validation enforcing limits below `0x0000_8000_0000_0000`.
+- **14 Supported System Calls:** `exit`, `read`, `write`, `open`, `close`, `spawn`, `wait`, `yield`, `sleep`, `get_time`, `map_memory`, `unmap_memory`, `send_ipc`, `receive_ipc`.
+- **Inter-Process Communication:** Mailbox queues with 256-byte payload limits, message sequencing, and caller isolation.
 
-### 4. Peripherals & Drivers (Section 10 Order)
-- **1. 16550 UART Serial:** Fully operational on COM1 (`0x3F8`) at 38,400 baud, 8N1.
-- **2. GOP Framebuffer:** Linear 32-bit rasterizer operational on UEFI-discovered base address.
-- **3. Text Console:** 8x16 monospace font terminal with line wrap, scrolling, and ANSI colors.
-- **4. Timer / APIC:** 8254 PIT running at 1000 Hz (1 ms tick) with uptime and sleep primitives; CPUID Local APIC detected.
-- **5. PS/2 Keyboard:** Scancode Set 1/2 decoder operational with shift/ctrl/alt modifier tracking.
-- **6. PS/2 Mouse:** 3-byte streaming packet decoder active with position clamped to screen bounds.
-- **7. PCI Enumeration:** Type 0/1 header scanning across 8 buses with BAR discovery.
-- **8. VirtIO Block:** 512-byte sector read/write supported with in-memory fallback block store.
-- **9. VirtIO Network:** Packet TX/RX and MAC address extraction active with virtual loopback fallback.
-- **10. Basic Audio:** PC Speaker tone synthesizer active via PIT Channel 2 (`0x61`).
-
-### 5. Future Hardware Roadmap
-- USB 3.0 xHCI / USB HID (Milestone 11)
-- NVMe 1.4 & AHCI SATA 1.3 (Milestone 11)
-- Intel HD Audio / AC97 Codecs (Milestone 11)
-- Wi-Fi & Bluetooth (Future)
-- GPU Acceleration (Future)
-
-### 6. Process & Userland
-- Preemptive scheduling, Ring 3 isolation, ELF64 user processes, and system call gates (`int 0x80`) are scheduled for **Milestone 4**.
+### 4. Storage & Filesystem Status
+- Disk persistence, FAT32/NovaFS mounting, VFS directory trees, and user profiles are scheduled for **Milestone 5**.

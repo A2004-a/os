@@ -51,7 +51,12 @@ impl PageTable {
 // Statically allocated root kernel PML4 and early page directory tables
 static mut KERNEL_PML4: PageTable = PageTable::empty();
 static mut KERNEL_PDPT: PageTable = PageTable::empty();
-static mut KERNEL_PD_LOW: PageTable = PageTable::empty();
+static mut KERNEL_PD_LOW: [PageTable; 4] = [
+    PageTable::empty(),
+    PageTable::empty(),
+    PageTable::empty(),
+    PageTable::empty(),
+];
 static mut KERNEL_PDPT_HIGH: PageTable = PageTable::empty();
 static mut KERNEL_PD_HIGH: PageTable = PageTable::empty();
 
@@ -234,28 +239,31 @@ pub fn init(_boot_info: &BootInfo) {
     unsafe {
         let pml4 = &mut *addr_of_mut!(KERNEL_PML4);
         let pdpt_low = &mut *addr_of_mut!(KERNEL_PDPT);
-        let pd_low = &mut *addr_of_mut!(KERNEL_PD_LOW);
         let pdpt_high = &mut *addr_of_mut!(KERNEL_PDPT_HIGH);
         let pd_high = &mut *addr_of_mut!(KERNEL_PD_HIGH);
 
         pml4.zero();
         pdpt_low.zero();
-        pd_low.zero();
         pdpt_high.zero();
         pd_high.zero();
 
         let pdpt_low_phys = pdpt_low as *const PageTable as u64;
-        let pd_low_phys = pd_low as *const PageTable as u64;
         let pdpt_high_phys = pdpt_high as *const PageTable as u64;
         let pd_high_phys = pd_high as *const PageTable as u64;
 
-        // 1. Identity map lower 1 GiB using 2 MiB huge pages (0x0 .. 0x4000_0000)
+        // 1. Identity map lower 4 GiB using 2 MiB huge pages (0x0 .. 0x1_0000_0000)
         pml4.entries[0] = pdpt_low_phys | PAGE_PRESENT | PAGE_WRITABLE;
-        pdpt_low.entries[0] = pd_low_phys | PAGE_PRESENT | PAGE_WRITABLE;
 
-        for i in 0..512 {
-            let phys_addr = (i as u64) * (2 * 1024 * 1024);
-            pd_low.entries[i] = phys_addr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_HUGE | PAGE_GLOBAL;
+        for g in 0..4 {
+            let pd = &mut (*addr_of_mut!(KERNEL_PD_LOW))[g];
+            pd.zero();
+            let pd_phys = pd as *const PageTable as u64;
+            pdpt_low.entries[g] = pd_phys | PAGE_PRESENT | PAGE_WRITABLE;
+
+            for i in 0..512 {
+                let phys_addr = ((g as u64) * 512 + (i as u64)) * (2 * 1024 * 1024);
+                pd.entries[i] = phys_addr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_HUGE | PAGE_GLOBAL;
+            }
         }
 
         // 2. Higher-half mapping for kernel space (0xFFFF_8000_0000_0000)
@@ -276,7 +284,7 @@ pub fn init(_boot_info: &BootInfo) {
     }
 
     serial::write_str("[PAGING] 4-level paging initialized. Kernel CR3 loaded with new PML4.\n");
-    serial::write_str("  Lower identity: [0x0000000000000000 - 0x0000000040000000] (1 GiB, 2 MiB pages)\n");
+    serial::write_str("  Lower identity: [0x0000000000000000 - 0x0000000100000000] (4 GiB, 2 MiB pages)\n");
     serial::write_str("  Higher direct:  [0xFFFF800000000000 - 0xFFFF800040000000] (1 GiB, 2 MiB pages)\n");
 }
 

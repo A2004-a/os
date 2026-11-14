@@ -116,39 +116,45 @@ pub fn validate_and_load(elf_data: &[u8], bs: &BootServices) -> Result<LoadedKer
         return Err(ElfError::NoLoadableSegments);
     }
 
-    // Allocate memory and copy segments
+    // Allocate the entire physical span for the kernel contiguously
+    // In UEFI: 0 = AllocateAnyPages, 1 = AllocateMaxAddress, 2 = AllocateAddress
+    let start_page = min_phys & !0xFFF;
+    let end_page = (max_phys + 0xFFF) & !0xFFF;
+    let total_pages = ((end_page - start_page) / 4096) as usize;
+
+    let mut allocated_addr = start_page;
+    let status = unsafe {
+        (bs.allocate_pages)(2, 2, total_pages, &mut allocated_addr)
+    };
+
+    crate::serial::write_str("  [ELF] Kernel span: 0x");
+    crate::serial::write_hex(start_page);
+    crate::serial::write_str(" - 0x");
+    crate::serial::write_hex(end_page);
+    crate::serial::write_str(" (pages=0x");
+    crate::serial::write_hex(total_pages as u64);
+    crate::serial::write_str(", status=0x");
+    crate::serial::write_hex(status as u64);
+    crate::serial::write_str(")\n");
+
+    if status != 0 {
+        return Err(ElfError::AllocationFailed);
+    }
+
+    // Zero out the entire allocated kernel space
+    unsafe {
+        core::ptr::write_bytes(start_page as *mut u8, 0, total_pages * 4096);
+    }
+
+    // Copy file data to destination for each PT_LOAD segment
     for i in 0..ph_num {
         let offset = ph_offset + i * ph_entsize;
         let ph = unsafe { &*(elf_data.as_ptr().add(offset) as *const Elf64ProgramHeader) };
 
         if ph.p_type == PT_LOAD {
             let target_phys = if ph.p_paddr != 0 { ph.p_paddr } else { ph.p_vaddr & 0x0000_0000_FFFF_FFFF };
-            let pages = ((ph.p_memsz + 4095) / 4096) as usize;
-
-            // Attempt AllocateAddress (1 = AllocateAddress, 2 = EfiLoaderData)
-            let mut allocated_addr = target_phys;
-            let status = unsafe {
-                (bs.allocate_pages)(1, 2, pages, &mut allocated_addr)
-            };
-
-            // If AllocateAddress failed, fall back to AllocateAnyPages (0)
-            let dest_ptr = if status == 0 {
-                target_phys as *mut u8
-            } else {
-                let mut any_addr: u64 = 0;
-                let status2 = unsafe {
-                    (bs.allocate_pages)(0, 2, pages, &mut any_addr)
-                };
-                if status2 != 0 {
-                    return Err(ElfError::AllocationFailed);
-                }
-                any_addr as *mut u8
-            };
-
-            // Copy file data to destination
             let file_offset = ph.p_offset as usize;
             let file_size = ph.p_filesz as usize;
-            let mem_size = ph.p_memsz as usize;
 
             if file_offset + file_size > elf_data.len() {
                 return Err(ElfError::OutOfBounds);
@@ -158,16 +164,8 @@ pub fn validate_and_load(elf_data: &[u8], bs: &BootServices) -> Result<LoadedKer
                 if file_size > 0 {
                     core::ptr::copy_nonoverlapping(
                         elf_data.as_ptr().add(file_offset),
-                        dest_ptr,
+                        target_phys as *mut u8,
                         file_size,
-                    );
-                }
-                // Zero BSS
-                if mem_size > file_size {
-                    core::ptr::write_bytes(
-                        dest_ptr.add(file_size),
-                        0,
-                        mem_size - file_size,
                     );
                 }
             }

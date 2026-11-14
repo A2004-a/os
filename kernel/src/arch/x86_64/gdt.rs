@@ -104,3 +104,17 @@ pub fn get_double_fault_stack_top() -> u64 {
     let stack_ptr = addr_of_mut!(DOUBLE_FAULT_STACK);
     (stack_ptr as u64) + (DOUBLE_FAULT_STACK_SIZE as u64)
 }
+
+pub fn set_tss_rsp0(rsp0: u64) {
+    unsafe {
+        let tss_ptr = addr_of_mut!(TSS);
+        (*tss_ptr).rsp[0] = rsp0;
+    }
+}
+
+pub fn get_tss_rsp0() -> u64 {
+    unsafe {
+        let tss_ptr = addr_of_mut!(TSS);
+        (*tss_ptr).rsp[0]
+    }
+}

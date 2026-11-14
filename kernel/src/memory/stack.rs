@@ -6,7 +6,7 @@ use super::frame::alloc_frame;
 use super::paging::{get_mapper, PagingError, PAGE_GLOBAL, PAGE_NO_EXECUTE, PAGE_PRESENT, PAGE_WRITABLE};
 use core::sync::atomic::{AtomicU64, Ordering};
 
-pub const KERNEL_STACK_VIRTUAL_BASE: u64 = 0xFFFF_8000_2000_0000;
+pub const KERNEL_STACK_VIRTUAL_BASE: u64 = 0xFFFF_8001_0000_0000;
 static NEXT_STACK_ADDR: AtomicU64 = AtomicU64::new(KERNEL_STACK_VIRTUAL_BASE);
 
 pub struct KernelStack {

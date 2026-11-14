@@ -2,6 +2,34 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.4.0] - 2026-11-14 — Milestone 4 (Scheduling, Processes, and Ring 3)
+
+### Added
+- **Preemptive Multi-Priority Scheduler (`scheduler/mod.rs` & `thread.rs`):**
+  - Priority queues spanning 5 priority levels (`Idle`, `Low`, `Normal`, `High`, `Realtime`) with dynamic time-slice quantums.
+  - Timer-driven preemption on 1000 Hz PIT ticks (`IRQ 0` / vector 32) triggering context switching.
+  - Sleep queue management (`sleep_ms`) with millisecond-accurate thread wakeups.
+  - Dedicated Idle Thread (TID 0) executing `hlt` loops when no user/kernel threads are ready.
+- **Synchronization Primitives (`scheduler/sync.rs`):**
+  - RAII-guarded `SpinLock<T>` with interrupt masking (`cli`/`sti`) and deadlock detection warning on >10,000,000 spin cycles.
+  - Event signaling primitive (`KernelEvent`) with atomic `wait`, `set`, and `reset`.
+- **Process Management & Ring 3 Isolation (`process/mod.rs`):**
+  - Process Control Blocks (PCB) with parent-child hierarchy, process state tracking, and isolated handle tables.
+  - Per-process 4-level paging address spaces with private lower user memory and shared kernel higher-half mappings.
+  - Automated process cleanup reclaiming allocated physical frames, threads, and open handles upon exit.
+- **ELF64 Executable Loader (`process/elf_loader.rs`):**
+  - Freestanding 64-bit ELF parser mapping loadable segments (`PT_LOAD`), zeroing BSS, and allocating 16 KiB user stack at `0x7FFF_FFFF_0000`.
+- **Native System Call Engine (`syscall/mod.rs` & `validate.rs`):**
+  - Hardware interrupt gate at IDT vector 128 (`0x80`, DPL=3) for Ring 3 to Ring 0 transitions.
+  - Strict security validation blocking null pointers, integer arithmetic overflows, and kernel tampering addresses above `0x0000_8000_0000_0000`.
+  - Implemented all 14 required system calls: `read`, `write`, `open`, `close`, `spawn`, `wait`, `exit`, `yield`, `sleep`, `get_time`, `map_memory`, `unmap_memory`, `send_ipc`, `receive_ipc`.
+- **Inter-Process Communication (`ipc/mod.rs`):**
+  - Process-isolated mailbox queues supporting message passing up to 256 bytes per packet.
+- **Userland Runtime (`userland/runtime/`):**
+  - Idiomatic, safe Rust API exposing all 14 system calls via inline `int 0x80` assembly.
+- **PID 1 Userland Init Daemon (`userland/init/`):**
+  - Freestanding Ring 3 daemon verifying uptime telemetry, cooperative yielding, sleep timers, dynamic page mapping, IPC loops, and typed handles.
+
 ## [0.3.0] - 2026-11-14 — Milestone 3 (Interrupts, Devices, and Drivers)
 
 ### Added

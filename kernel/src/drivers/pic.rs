@@ -14,14 +14,14 @@ pub const PIC1_OFFSET: u8 = 32; // Vectors 32..39
 pub const PIC2_OFFSET: u8 = 40; // Vectors 40..47
 
 #[inline(always)]
-unsafe fn inb(port: u16) -> u8 {
+pub unsafe fn inb(port: u16) -> u8 {
     let mut val: u8;
     asm!("in al, dx", in("dx") port, out("al") val, options(nomem, nostack, preserves_flags));
     val
 }
 
 #[inline(always)]
-unsafe fn outb(port: u16, val: u8) {
+pub unsafe fn outb(port: u16, val: u8) {
     asm!("out dx, al", in("dx") port, in("al") val, options(nomem, nostack, preserves_flags));
 }
 

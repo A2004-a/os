@@ -8,9 +8,13 @@ extern crate alloc;
 pub mod arch;
 pub mod boot;
 pub mod drivers;
+pub mod ipc;
 pub mod memory;
 pub mod objects;
 pub mod panic;
+pub mod process;
+pub mod scheduler;
+pub mod syscall;
 
 pub mod serial {
     use core::arch::asm;
