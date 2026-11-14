@@ -1,5 +1,8 @@
+//! NovaOS Zero — Memory Management Subsystem
+
 pub mod frame;
 pub mod heap;
+pub mod memory_test;
 pub mod paging;
 
 pub use frame::BootInfoFrameAllocator;

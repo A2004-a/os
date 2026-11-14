@@ -1,7 +1,7 @@
 //! Round-Robin Task Scheduler
 
 use super::task::{Task, TaskId, TaskState};
-use spin::Mutex;
+use crate::sync::Spinlock;
 
 pub const MAX_TASKS: usize = 32;
 
@@ -56,4 +56,4 @@ impl RoundRobinScheduler {
     }
 }
 
-pub static SCHEDULER: Mutex<RoundRobinScheduler> = Mutex::new(RoundRobinScheduler::new());
+pub static SCHEDULER: Spinlock<RoundRobinScheduler> = Spinlock::new(RoundRobinScheduler::new());

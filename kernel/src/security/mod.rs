@@ -1,17 +1,33 @@
 //! NovaOS Security Model & Capability Handles
 //! Enforces least-privilege resource access and userland pointer validation
 
-use bitflags::bitflags;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CapabilityFlags(pub u32);
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct CapabilityFlags: u32 {
-        const READ    = 1 << 0;
-        const WRITE   = 1 << 1;
-        const EXEC    = 1 << 2;
-        const SPAWN   = 1 << 3;
-        const NETWORK = 1 << 4;
-        const STORAGE = 1 << 5;
+impl CapabilityFlags {
+    pub const READ: Self = Self(1 << 0);
+    pub const WRITE: Self = Self(1 << 1);
+    pub const EXEC: Self = Self(1 << 2);
+    pub const SPAWN: Self = Self(1 << 3);
+    pub const NETWORK: Self = Self(1 << 4);
+    pub const STORAGE: Self = Self(1 << 5);
+
+    pub fn contains(&self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+}
+
+impl core::ops::BitOr for CapabilityFlags {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitAnd for CapabilityFlags {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
     }
 }
 

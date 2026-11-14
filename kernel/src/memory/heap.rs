@@ -1,39 +1,86 @@
-//! Dynamic Kernel Heap Allocator
+//! NovaOS Zero — Freestanding Dynamic Kernel Heap Allocator
 
-use linked_list_allocator::LockedHeap;
-use x86_64::structures::paging::mapper::MapToError;
-use x86_64::structures::paging::{FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB};
-use x86_64::VirtAddr;
+use core::alloc::{GlobalAlloc, Layout};
+use crate::sync::Spinlock;
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 256 * 1024; // 256 KiB
 
+pub struct SimpleHeap {
+    heap_start: usize,
+    heap_end: usize,
+    next: usize,
+    allocations: usize,
+}
+
+impl SimpleHeap {
+    pub const fn empty() -> Self {
+        Self {
+            heap_start: 0,
+            heap_end: 0,
+            next: 0,
+            allocations: 0,
+        }
+    }
+
+    pub unsafe fn init(&mut self, start: usize, size: usize) {
+        self.heap_start = start;
+        self.heap_end = start + size;
+        self.next = start;
+        self.allocations = 0;
+    }
+}
+
+pub struct LockedHeap(Spinlock<SimpleHeap>);
+
+impl LockedHeap {
+    pub const fn empty() -> Self {
+        Self(Spinlock::new(SimpleHeap::empty()))
+    }
+
+    pub fn lock(&self) -> crate::sync::SpinlockGuard<'_, SimpleHeap> {
+        self.0.lock()
+    }
+}
+
+unsafe impl GlobalAlloc for LockedHeap {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let mut heap = self.0.lock();
+        if heap.heap_start == 0 {
+            return core::ptr::null_mut();
+        }
+        let align = layout.align();
+        let size = layout.size();
+        let alloc_start = (heap.next + align - 1) & !(align - 1);
+        let alloc_end = alloc_start + size;
+        if alloc_end > heap.heap_end {
+            core::ptr::null_mut()
+        } else {
+            heap.next = alloc_end;
+            heap.allocations += 1;
+            alloc_start as *mut u8
+        }
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        let mut heap = self.0.lock();
+        if heap.allocations > 0 {
+            heap.allocations -= 1;
+            if heap.allocations == 0 {
+                heap.next = heap.heap_start;
+            }
+        }
+    }
+}
+
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+pub static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-pub fn init_heap(
-    mapper: &mut impl Mapper<Size4KiB>,
-    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-) -> Result<(), MapToError<Size4KiB>> {
-    let page_range = {
-        let heap_start = VirtAddr::new(HEAP_START as u64);
-        let heap_end = heap_start + HEAP_SIZE - 1u64;
-        let heap_start_page = Page::containing_address(heap_start);
-        let heap_end_page = Page::containing_address(heap_end);
-        Page::range_inclusive(heap_start_page, heap_end_page)
-    };
-
-    for page in page_range {
-        let frame = frame_allocator
-            .allocate_frame()
-            .ok_or(MapToError::FrameAllocationFailed)?;
-        let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-        unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush() };
-    }
-
+pub fn init_heap() {
     unsafe {
-        ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
+        // In M1 bootstrap, configure static heap buffer
+        static mut STATIC_HEAP_STORAGE: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
+        let start = STATIC_HEAP_STORAGE.as_ptr() as usize;
+        ALLOCATOR.lock().init(start, HEAP_SIZE);
     }
-
-    Ok(())
 }

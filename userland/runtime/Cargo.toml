@@ -6,9 +6,3 @@ authors = ["NovaOS Systems Engineering <kernel@novaos.org>"]
 description = "NovaOS Userland Runtime Layer"
 
 [dependencies]
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"

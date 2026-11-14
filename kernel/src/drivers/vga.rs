@@ -1,8 +1,7 @@
-//! VGA 80x25 Text Mode Console Driver (Memory mapped at physical address 0xb8000)
+//! NovaOS Zero — Freestanding VGA 80x25 Text Mode Console Driver (0xb8000)
 
 use core::fmt;
-use spin::Mutex;
-use volatile::Volatile;
+use crate::sync::Spinlock;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,7 +30,7 @@ pub enum Color {
 struct ColorCode(u8);
 
 impl ColorCode {
-    fn new(foreground: Color, background: Color) -> ColorCode {
+    const fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
@@ -45,19 +44,23 @@ struct ScreenChar {
 
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
-
-#[repr(transparent)]
-struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
-}
+const VGA_MEMORY: usize = 0xb8000;
 
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
-    buffer: &'static mut Buffer,
+    buffer_base: usize,
 }
 
 impl Writer {
+    const fn new() -> Self {
+        Self {
+            column_position: 0,
+            color_code: ColorCode::new(Color::Green, Color::Black),
+            buffer_base: VGA_MEMORY,
+        }
+    }
+
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
@@ -68,12 +71,15 @@ impl Writer {
 
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
-
                 let color_code = self.color_code;
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_character: byte,
-                    color_code,
-                });
+
+                unsafe {
+                    let ptr = (self.buffer_base as *mut ScreenChar).add(row * BUFFER_WIDTH + col);
+                    core::ptr::write_volatile(ptr, ScreenChar {
+                        ascii_character: byte,
+                        color_code,
+                    });
+                }
                 self.column_position += 1;
             }
         }
@@ -89,10 +95,15 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+        unsafe {
+            let base = self.buffer_base as *mut ScreenChar;
+            for row in 1..BUFFER_HEIGHT {
+                for col in 0..BUFFER_WIDTH {
+                    let src = base.add(row * BUFFER_WIDTH + col);
+                    let dst = base.add((row - 1) * BUFFER_WIDTH + col);
+                    let ch = core::ptr::read_volatile(src);
+                    core::ptr::write_volatile(dst, ch);
+                }
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
@@ -104,8 +115,11 @@ impl Writer {
             ascii_character: b' ',
             color_code: self.color_code,
         };
-        for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
+        unsafe {
+            let base = self.buffer_base as *mut ScreenChar;
+            for col in 0..BUFFER_WIDTH {
+                core::ptr::write_volatile(base.add(row * BUFFER_WIDTH + col), blank);
+            }
         }
     }
 }
@@ -117,11 +131,7 @@ impl fmt::Write for Writer {
     }
 }
 
-pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
-    column_position: 0,
-    color_code: ColorCode((Color::Black as u8) << 4 | (Color::Green as u8)),
-    buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-});
+pub static WRITER: Spinlock<Writer> = Spinlock::new(Writer::new());
 
 #[macro_export]
 macro_rules! print {
@@ -137,9 +147,6 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-
-    interrupts::without_interrupts(|| {
-        WRITER.lock().write_fmt(args).unwrap();
-    });
+    let mut writer = WRITER.lock();
+    let _ = writer.write_fmt(args);
 }

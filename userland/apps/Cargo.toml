@@ -7,9 +7,3 @@ description = "NovaOS Userland Application Suite"
 
 [dependencies]
 novaos-runtime = { path = "../runtime" }
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"

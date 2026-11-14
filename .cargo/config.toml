@@ -1,9 +1,2 @@
-[build]
-target = "x86_64-novaos.json"
-
-[target.'cfg(target_os = "none")']
-runner = "bootimage runner"
-
-[unstable]
-build-std-features = ["compiler-builtins-mem"]
-build-std = ["core", "compiler_builtins", "alloc"]
+# NovaOS Cargo Config
+# Target-specific flags for bare-metal x86_64 and UEFI

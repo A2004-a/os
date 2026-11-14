@@ -8,7 +8,12 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 use novaos_kernel::boot::info::BootInfo;
-use novaos_kernel::{println, serial_println};
+use novaos_kernel::{print, println, serial_println};
+
+#[no_mangle]
+pub extern "C" fn _start(boot_info_ptr: *const BootInfo) -> ! {
+    kernel_entry(boot_info_ptr);
+}
 
 #[no_mangle]
 pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
@@ -25,6 +30,12 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
 
     // Initialize all kernel subsystems
     novaos_kernel::init(boot_info);
+
+    // Run Milestone M1 CPU architecture exception diagnostic suite
+    novaos_kernel::arch::x86_64::exceptions_test::run_exception_diagnostics();
+
+    // Run Milestone M2 Memory, Paging, and Object diagnostic suite
+    novaos_kernel::memory::memory_test::run_memory_diagnostics(boot_info);
 
     println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");

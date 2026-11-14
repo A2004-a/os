@@ -1,35 +1,30 @@
-//! PS/2 Keyboard Driver (I/O Port 0x60)
+//! NovaOS Zero — Freestanding PS/2 Keyboard Driver (I/O Port 0x60)
 
 use crate::arch::x86_64::io::inb;
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-use spin::Mutex;
 
-static KEYBOARD: Mutex<Option<Keyboard<layouts::Us104Key, ScancodeSet1>>> = Mutex::new(None);
+const SCANCODE_MAP: [char; 58] = [
+    '\0', '\x1B', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\x08',
+    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
+    '\0', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
+    '\0', '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', '\0',
+    '*', '\0', ' ',
+];
 
 pub fn init() {
-    let kb = Keyboard::new(
-        ScancodeSet1::new(),
-        layouts::Us104Key,
-        HandleControl::Ignore,
-    );
-    *KEYBOARD.lock() = Some(kb);
+    // PS/2 Keyboard is auto-detected on Port 0x60
 }
 
 pub fn on_keyboard_interrupt() {
     let scancode = unsafe { inb(0x60) };
 
-    if let Some(ref mut kb) = *KEYBOARD.lock() {
-        if let Ok(Some(key_event)) = kb.add_byte(scancode) {
-            if let Some(key) = kb.process_keyevent(key_event) {
-                match key {
-                    DecodedKey::Unicode(c) => {
-                        crate::print!("{}", c);
-                        crate::serial_print!("{}", c);
-                    }
-                    DecodedKey::RawKey(k) => {
-                        crate::serial_println!("[KEY: {:?}]", k);
-                    }
-                }
+    // Ignore key release events (bit 7 set)
+    if (scancode & 0x80) == 0 {
+        let code = scancode as usize;
+        if code < SCANCODE_MAP.len() {
+            let ch = SCANCODE_MAP[code];
+            if ch != '\0' {
+                crate::print!("{}", ch);
+                crate::serial_print!("{}", ch);
             }
         }
     }

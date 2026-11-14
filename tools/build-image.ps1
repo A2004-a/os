@@ -10,6 +10,14 @@ param (
 
 $ErrorActionPreference = "Stop"
 
+# Auto-locate cargo in default Rustup user directory if not in PATH
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    $cargoPath = Join-Path $env:USERPROFILE ".cargo\bin"
+    if (Test-Path $cargoPath) {
+        $env:PATH = "$cargoPath;$env:PATH"
+    }
+}
+
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "   NovaOS Zero Multi-Stage OS Builder     " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
@@ -50,6 +58,20 @@ foreach ($src in $loaderCandidates) {
         Write-Host "[3/3] Created EFI payload: $loaderDst" -ForegroundColor Green
         break
     }
+}
+
+# Copy kernel ELF to root of boot partition
+$kernelSrc = "target\x86_64-unknown-none\$targetMode\novaos-kernel"
+$kernelDst = Join-Path $buildDir "novaos.elf"
+if (Test-Path $kernelSrc) {
+    Copy-Item $kernelSrc $kernelDst -Force
+    Write-Host "[3/3] Created kernel payload: $kernelDst" -ForegroundColor Green
+}
+
+# Copy boot configuration
+if (Test-Path "novaos.cfg") {
+    Copy-Item "novaos.cfg" (Join-Path $buildDir "novaos.cfg") -Force
+    Write-Host "[3/3] Copied boot configuration: $buildDir\novaos.cfg" -ForegroundColor Green
 }
 
 Write-Host "`n[SUCCESS] NovaOS Zero build sequence complete!" -ForegroundColor Green

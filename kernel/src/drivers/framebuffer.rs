@@ -1,7 +1,7 @@
 //! UEFI GOP Linear Framebuffer Graphics Driver
 
 use crate::boot::info::FramebufferInfo;
-use spin::Mutex;
+use crate::sync::Spinlock;
 
 pub struct Framebuffer {
     base_ptr: *mut u8,
@@ -55,7 +55,7 @@ impl Framebuffer {
     }
 }
 
-pub static FRAMEBUFFER: Mutex<Option<Framebuffer>> = Mutex::new(None);
+pub static FRAMEBUFFER: Spinlock<Option<Framebuffer>> = Spinlock::new(None);
 
 pub fn init(info: FramebufferInfo) {
     let fb = Framebuffer::new(info);
