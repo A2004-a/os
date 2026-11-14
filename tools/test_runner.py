@@ -59,8 +59,14 @@ def run_test(timeout_sec=60):
                 if "[TERMINAL TEST RESULT] ALL 25 TERMINAL & NOVASHELL TESTS PASSED (0 ERRORS)" in line:
                     print("\n[TEST RUNNER] Detected Terminal & NovaShell 25-Gate Verification PASS!")
 
-                if "[WINDOWS 11 FEATURE VERIFICATION RESULT] ALL 105 FEATURES VERIFIED (0 ERRORS)" in line or "PID 1 entering steady-state supervisory loop" in line:
-                    print("\n[TEST RUNNER] Detected Windows 11 105-Feature Verification & Production Release Certification!")
+                if "[NOVA STORE RESULT] ALL 20 NOVA STORE TESTS PASSED (0 ERRORS)" in line:
+                    print("\n[TEST RUNNER] Detected Nova Store 20-Gate Package Management Verification PASS!")
+
+                if "[WINDOWS 11 FEATURE VERIFICATION RESULT] ALL 105 FEATURES VERIFIED (0 ERRORS)" in line:
+                    print("\n[TEST RUNNER] Detected Windows 11 105-Feature Verification PASS!")
+
+                if "PID 1 entering steady-state supervisory loop" in line:
+                    print("\n[TEST RUNNER] Detected PID 1 Steady-State Supervisory Loop & Full Kernel Certification!")
                     success = True
                     break
             else:

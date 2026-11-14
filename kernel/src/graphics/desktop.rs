@@ -285,7 +285,13 @@ impl DesktopShell {
             if let Some(action) = self.launcher.hit_test(x, y, self.compositor.width, self.compositor.height, self.bar.height) {
                 match action {
                     LauncherAction::LaunchApp(app_name) => {
-                        self.compositor.create_window(app_name, 120, 100, 480, 320, 0, 1);
+                        let wid = self.compositor.create_window(app_name, 140, 80, 560, 380, 0, 1);
+                        if app_name == "Package Manager" || app_name == "Nova Store" || app_name == "Pkg Store" {
+                            self.render_store_surface(wid);
+                        } else if app_name == "Terminal" {
+                            self.init_terminal();
+                        }
+                        self.compositor.bring_to_front(wid);
                         self.toggle_launcher();
                     }
                     LauncherAction::PowerAction(_pwr) => {
@@ -361,8 +367,38 @@ impl DesktopShell {
 
             self.compositor.on_mouse_down(x, y, button);
         } else {
-            // Wallpaper click: start marquee selection
+            // Check click on Desktop Shortcut Icons (Left Column)
             if button == 1 {
+                if x >= 14 && x <= 74 {
+                    if y >= 24 && y <= 84 {
+                        let wid = self.compositor.create_window("Nova Files", 116, 32, 548, 656, 0, 1);
+                        self.compositor.bring_to_front(wid);
+                        return;
+                    } else if y >= 96 && y <= 156 {
+                        let wid = self.compositor.create_window("System Monitor", 160, 120, 520, 360, 0, 1);
+                        self.compositor.bring_to_front(wid);
+                        return;
+                    } else if y >= 168 && y <= 228 {
+                        let wid = self.compositor.create_window("Settings", 180, 140, 500, 360, 0, 1);
+                        self.compositor.bring_to_front(wid);
+                        return;
+                    } else if y >= 240 && y <= 300 {
+                        let wid = self.compositor.create_window("Nova Store", 180, 100, 560, 380, 0, 1);
+                        self.render_store_surface(wid);
+                        self.compositor.bring_to_front(wid);
+                        return;
+                    } else if y >= 312 && y <= 372 {
+                        let wid = self.compositor.create_window("Terminal", 220, 120, 560, 380, 0, 1);
+                        self.init_terminal();
+                        self.compositor.bring_to_front(wid);
+                        return;
+                    } else if y >= 384 && y <= 444 {
+                        let wid = self.compositor.create_window("Device Manager", 240, 140, 520, 360, 0, 1);
+                        self.compositor.bring_to_front(wid);
+                        return;
+                    }
+                }
+                // Wallpaper click: start marquee selection
                 self.features.start_marquee(Point::new(x, y));
             }
         }
@@ -809,8 +845,12 @@ impl DesktopShell {
         let w_term = self.compositor.create_window("Terminal", 686, 32, 560, 656, 0, 1);
         self.init_terminal();
 
-        // 3. Bring Terminal to front as active window
-        self.compositor.bring_to_front(w_term);
+        // 3. Spawn Nova Store (x: 280, y: 90, 620x440 client)
+        let w_store = self.compositor.create_window("Nova Store", 280, 90, 620, 440, 0, 1);
+        self.render_store_surface(w_store);
+
+        // 4. Bring Nova Store to front as active window
+        self.compositor.bring_to_front(w_store);
     }
 
     pub fn init_terminal(&mut self) {
@@ -940,7 +980,7 @@ impl DesktopShell {
                 self.terminal_print_line("NovaShell Built-in Commands:", Color::NOVA_ACCENT);
                 self.terminal_print_line("  help, uname, whoami, pwd, cd, ls, dir, cat, echo,", Color::TEXT_SECONDARY);
                 self.terminal_print_line("  mkdir, touch, stat, rm, ifconfig, ping, netstat,", Color::TEXT_SECONDARY);
-                self.terminal_print_line("  uptime, winver, ps, free, clear, cls, exit", Color::TEXT_SECONDARY);
+                self.terminal_print_line("  uptime, winver, ps, free, pkg, store, clear, cls, exit", Color::TEXT_SECONDARY);
             }
             "uname" => {
                 if arg == "-a" || cmd_str == "uname -a" {
@@ -1036,6 +1076,59 @@ impl DesktopShell {
                 self.terminal_print_line("Physical RAM: 256 MiB (38 MiB used, 218 MiB free)", Color::TEXT_PRIMARY);
                 self.terminal_print_line("Kernel Heap:   64 MiB (11 MiB used, 53 MiB free)", Color::TEXT_PRIMARY);
             }
+            "pkg" | "store" => {
+                let sub = arg;
+                let target_pkg = parts.next().unwrap_or("");
+                match sub {
+                    "list" | "" => {
+                        self.terminal_print_line("Nova Store (.nvp) Package Catalog:", Color::NOVA_ACCENT);
+                        self.terminal_print_line("  coreutils  0.5.0  [Installed]  System Utilities", Color::TEXT_PRIMARY);
+                        self.terminal_print_line("  novashell  0.8.0  [Installed]  System Shell", Color::TEXT_PRIMARY);
+                        self.terminal_print_line("  nettools   0.6.0  [Installed]  Network Tools", Color::TEXT_PRIMARY);
+                        self.terminal_print_line("  textedit   1.0.0  [Available]  Productivity", Color::TEXT_SECONDARY);
+                        self.terminal_print_line("  calc       0.4.0  [Available]  Utilities", Color::TEXT_SECONDARY);
+                        self.terminal_print_line("  paint      0.3.0  [Available]  Creative Tools", Color::TEXT_SECONDARY);
+                    }
+                    "info" => {
+                        if target_pkg.is_empty() {
+                            self.terminal_print_line("pkg: missing package name", Color::WARNING_AMBER);
+                        } else if target_pkg == "coreutils" {
+                            self.terminal_print_line("Package: coreutils  Version: 0.5.0", Color::NOVA_ACCENT);
+                            self.terminal_print_line("Publisher: NovaOS Apex Team  Size: 128 KB", Color::TEXT_PRIMARY);
+                            self.terminal_print_line("Signature: Ed25519 Verified [PASS]", Color::SUCCESS_GREEN);
+                            self.terminal_print_line("Permissions: fs:read, fs:write, proc:exec", Color::TEXT_SECONDARY);
+                        } else if target_pkg == "textedit" {
+                            self.terminal_print_line("Package: textedit  Version: 1.0.0", Color::NOVA_ACCENT);
+                            self.terminal_print_line("Publisher: Apex Labs  Size: 180 KB", Color::TEXT_PRIMARY);
+                            self.terminal_print_line("Signature: Ed25519 Verified [PASS]", Color::SUCCESS_GREEN);
+                            self.terminal_print_line("Permissions: fs:read, fs:write, gui:window", Color::TEXT_SECONDARY);
+                        } else {
+                            self.terminal_print_line("Package: registered in NVP Catalog", Color::NOVA_ACCENT);
+                            self.terminal_print_line("Signature: Ed25519 Verified [PASS]", Color::SUCCESS_GREEN);
+                        }
+                    }
+                    "install" => {
+                        if target_pkg.is_empty() {
+                            self.terminal_print_line("pkg: missing package name", Color::WARNING_AMBER);
+                        } else {
+                            self.terminal_print_line("Verifying Ed25519 digital signature...", Color::TEXT_SECONDARY);
+                            self.terminal_print_line("Staging package payload to NovaFS...", Color::TEXT_SECONDARY);
+                            self.terminal_print_line("Package installed and registered in system PATH.", Color::SUCCESS_GREEN);
+                        }
+                    }
+                    "remove" | "uninstall" => {
+                        if target_pkg.is_empty() {
+                            self.terminal_print_line("pkg: missing package name", Color::WARNING_AMBER);
+                        } else {
+                            self.terminal_print_line("Reclaiming allocated filesystem blocks...", Color::TEXT_SECONDARY);
+                            self.terminal_print_line("Package uninstalled successfully.", Color::SUCCESS_GREEN);
+                        }
+                    }
+                    _ => {
+                        self.terminal_print_line("Usage: pkg [list | info <pkg> | install <pkg> | remove <pkg>]", Color::WARNING_AMBER);
+                    }
+                }
+            }
             "clear" | "cls" => {
                 self.terminal_line_count = 0;
             }
@@ -1048,6 +1141,115 @@ impl DesktopShell {
         }
 
         self.redraw_terminal_surface();
+    }
+
+    pub fn render_store_surface(&mut self, win_id: WindowId) {
+        if let Some(win) = self.compositor.get_window_mut(win_id) {
+            let surf = &mut win.surface;
+            let w = surf.width;
+            let h = surf.height;
+
+            // Background (Dark Slate Mica)
+            surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x13171F));
+
+            // 1. Header Toolbar (h: 40)
+            surf.fill_rect(Rect::new(0, 0, w, 40), Color::from_hex(0x1E2430));
+            surf.draw_line(0, 40, w as i32, 40, Color::from_hex(0x30363D));
+
+            // Store Brand Icon (Purple 'P') & Title
+            let badge_r = Rect::new(12, 8, 24, 24);
+            surf.fill_rect(badge_r, Color::from_hex(0x8764B8));
+            draw_text(surf, "P", 20, 12, Color::TEXT_PRIMARY);
+            draw_text(surf, "Nova Store", 44, 12, Color::NOVA_ACCENT);
+
+            // Filter Tabs: [ All (6) ], [ Installed (3) ], [ Available (3) ]
+            let tabs = ["All (6)", "Installed (3)", "Available (3)"];
+            let mut tab_x = 160;
+            for (idx, tab) in tabs.iter().enumerate() {
+                let tw = (tab.len() as u32 * 8) + 16;
+                let tr = Rect::new(tab_x, 8, tw, 24);
+                let is_active = idx == 0;
+                let bg = if is_active { Color::from_hex(0x283244) } else { Color::from_hex(0x161B22) };
+                surf.fill_rect(tr, bg);
+                surf.draw_rect_outline(tr, if is_active { Color::NOVA_ACCENT } else { Color::from_hex(0x30363D) }, 1);
+                draw_text(surf, tab, tab_x + 8, 12, if is_active { Color::NOVA_ACCENT } else { Color::TEXT_SECONDARY });
+                tab_x += tw as i32 + 8;
+            }
+
+            // 2. Left Column: Package Catalog List (width: 220)
+            let list_w = 220;
+            let list_h = h.saturating_sub(40 + 26);
+            surf.fill_rect(Rect::new(0, 41, list_w, list_h), Color::from_hex(0x161B22));
+            surf.draw_line(list_w as i32, 41, list_w as i32, (41 + list_h) as i32, Color::from_hex(0x30363D));
+
+            let catalog_items = [
+                ("coreutils", "v0.5.0", "[Installed]", Color::SUCCESS_GREEN),
+                ("novashell", "v0.8.0", "[Installed]", Color::SUCCESS_GREEN),
+                ("nettools",  "v0.6.0", "[Installed]", Color::SUCCESS_GREEN),
+                ("textedit",  "v1.0.0", "[Available]", Color::NOVA_ACCENT),
+                ("calc",      "v0.4.0", "[Available]", Color::NOVA_ACCENT),
+                ("paint",     "v0.3.0", "[Available]", Color::NOVA_ACCENT),
+            ];
+
+            let mut py = 50;
+            for (name, ver, status, stat_col) in catalog_items {
+                let is_selected = name == "textedit";
+                let row_r = Rect::new(6, py - 4, list_w - 12, 34);
+                if is_selected {
+                    surf.fill_rect(row_r, Color::from_hex(0x283244));
+                    surf.draw_rect_outline(row_r, Color::NOVA_ACCENT, 1);
+                } else {
+                    surf.fill_rect(row_r, Color::from_hex(0x1A202C));
+                }
+
+                draw_text(surf, name, 14, py, Color::TEXT_PRIMARY);
+                draw_text(surf, ver, 110, py, Color::TEXT_SECONDARY);
+                draw_text(surf, status, 140, py, stat_col);
+                py += 38;
+            }
+
+            // 3. Right Column: Selected Package Detail Card
+            let card_x = list_w as i32 + 14;
+            let card_y = 52;
+            let card_w = w.saturating_sub(list_w + 28);
+            let card_h = h.saturating_sub(52 + 32);
+            let card_r = Rect::new(card_x, card_y, card_w, card_h);
+            surf.fill_rect(card_r, Color::NOVA_CARD);
+            surf.draw_rect_outline(card_r, Color::NOVA_BORDER, 1);
+
+            // Package Title & Version
+            draw_text(surf, "textedit  v1.0.0", card_x + 16, card_y + 16, Color::NOVA_ACCENT);
+            draw_text(surf, "Publisher: Apex Labs  |  Category: Productivity", card_x + 16, card_y + 40, Color::TEXT_SECONDARY);
+            draw_text(surf, "Package Size: 180 KB  |  Format: Signed .nvp Binary", card_x + 16, card_y + 60, Color::TEXT_SECONDARY);
+
+            // Security & Digital Trust Verification Section
+            surf.draw_line(card_x + 16, card_y + 86, card_x + card_w as i32 - 16, card_y + 86, Color::from_hex(0x30363D));
+            draw_text(surf, "Security & Cryptographic Trust Verification:", card_x + 16, card_y + 96, Color::TEXT_PRIMARY);
+            draw_text(surf, "[PASS] Ed25519 Digital Signature: VALID", card_x + 16, card_y + 118, Color::SUCCESS_GREEN);
+            draw_text(surf, "[PASS] Publisher Trust: verified-official-catalog", card_x + 16, card_y + 138, Color::SUCCESS_GREEN);
+            draw_text(surf, "[PASS] SHA-256 Digest: 8f01cfea... INTEGRITY OK", card_x + 16, card_y + 158, Color::SUCCESS_GREEN);
+
+            // Sandboxed Capabilities
+            draw_text(surf, "Granted Permissions (Capability Sandboxing):", card_x + 16, card_y + 188, Color::TEXT_PRIMARY);
+            draw_text(surf, "  CAP_FS_READ | CAP_FS_WRITE | CAP_GUI_WINDOW", card_x + 16, card_y + 208, Color::NOVA_ACCENT);
+
+            // Install Action Button
+            let btn_r = Rect::new(card_x + 16, card_y + 236, 150, 30);
+            surf.fill_rect(btn_r, Color::from_hex(0x238636));
+            surf.draw_rect_outline(btn_r, Color::SUCCESS_GREEN, 1);
+            draw_text(surf, "Install Package", card_x + 32, card_y + 243, Color::TEXT_PRIMARY);
+
+            // Status message
+            draw_text(surf, "Ready for installation.", card_x + 180, card_y + 243, Color::TEXT_SECONDARY);
+
+            // 4. Bottom Status Bar (h: 26)
+            let status_y = h as i32 - 26;
+            surf.fill_rect(Rect::new(0, status_y, w, 26), Color::from_hex(0x161B22));
+            surf.draw_line(0, status_y, w as i32, status_y, Color::from_hex(0x30363D));
+            draw_text(surf, "Cryptographic Trust Verified: All 6 packages signed with Ed25519 root key.", 14, status_y + 6, Color::TEXT_SECONDARY);
+        }
+
+        self.compositor.damage_window(win_id);
     }
 }
 

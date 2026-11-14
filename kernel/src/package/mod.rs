@@ -5,6 +5,7 @@
 pub mod crypto;
 pub mod format;
 pub mod manager;
+pub mod store_tests;
 
 pub fn init() {
     manager::init();

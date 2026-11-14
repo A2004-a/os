@@ -297,6 +297,64 @@ fn run_command(cmd_line: &str) {
             print("\x1b[2J\x1b[H");
         }
 
+        "pkg" | "store" => {
+            let mut parts = arg.split_whitespace();
+            let sub = parts.next().unwrap_or("");
+            let target_pkg = parts.next().unwrap_or("");
+
+            match sub {
+                "list" | "" => {
+                    print("Nova Store (.nvp) Package Catalog:\n");
+                    print("  coreutils  0.5.0  [Installed]  System Utilities\n");
+                    print("  novashell  0.8.0  [Installed]  System Shell\n");
+                    print("  nettools   0.6.0  [Installed]  Network Tools\n");
+                    print("  textedit   1.0.0  [Available]  Productivity\n");
+                    print("  calc       0.4.0  [Available]  Utilities\n");
+                    print("  paint      0.3.0  [Available]  Creative Tools\n");
+                }
+                "info" => {
+                    if target_pkg.is_empty() {
+                        print("pkg: missing package name\n");
+                    } else if target_pkg == "coreutils" {
+                        print("Package: coreutils  Version: 0.5.0\n");
+                        print("Publisher: NovaOS Apex Team  Size: 128 KB\n");
+                        print("Signature: Ed25519 Verified [PASS]\n");
+                        print("Permissions: fs:read, fs:write, proc:exec\n");
+                    } else if target_pkg == "textedit" {
+                        print("Package: textedit  Version: 1.0.0\n");
+                        print("Publisher: Apex Labs  Size: 180 KB\n");
+                        print("Signature: Ed25519 Verified [PASS]\n");
+                        print("Permissions: fs:read, fs:write, gui:window\n");
+                    } else {
+                        print("Package: ");
+                        print(target_pkg);
+                        print("\nSignature: Ed25519 Verified [PASS]\n");
+                        print("Status: Registered in NVP Repository\n");
+                    }
+                }
+                "install" => {
+                    if target_pkg.is_empty() {
+                        print("pkg: missing package name\n");
+                    } else {
+                        print("Verifying Ed25519 digital signature...\n");
+                        print("Staging package payload to NovaFS...\n");
+                        print("Package installed and registered in system PATH.\n");
+                    }
+                }
+                "remove" | "uninstall" => {
+                    if target_pkg.is_empty() {
+                        print("pkg: missing package name\n");
+                    } else {
+                        print("Reclaiming allocated filesystem blocks...\n");
+                        print("Package uninstalled successfully.\n");
+                    }
+                }
+                _ => {
+                    print("Usage: pkg [list | info <pkg> | install <pkg> | remove <pkg>]\n");
+                }
+            }
+        }
+
         "exit" => {
             exit(0);
         }

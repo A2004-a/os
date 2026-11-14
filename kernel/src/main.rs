@@ -233,7 +233,15 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL WARN] Terminal & NovaShell verification encountered failures.\n");
     }
 
-    // 16d. Run Windows 11 Desktop Features Verification Suite (105 Gates)
+    // 16d. Run Nova Store & Package Management Verification Suite (20 Gates)
+    let store_passed = package::store_tests::run_all_store_tests();
+    if store_passed {
+        serial::write_str("[KERNEL] All 20 Nova Store & Package Management functional gates certified!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Nova Store verification encountered failures.\n");
+    }
+
+    // 16e. Run Windows 11 Desktop Features Verification Suite (105 Gates)
     let win105_passed = graphics::windows_features_test::run_all_105_windows_feature_tests();
     if win105_passed {
         serial::write_str("[KERNEL] Windows 11-class desktop subsystem certified with 105 passing features!\n");
