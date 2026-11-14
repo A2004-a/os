@@ -17,6 +17,7 @@ pub mod network;
 pub mod objects;
 pub mod package;
 pub mod panic;
+pub mod posix;
 pub mod process;
 pub mod recovery;
 pub mod scheduler;

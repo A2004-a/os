@@ -78,6 +78,18 @@ pub const SYS_SET_FS_BASE: usize = 59;
 pub const SYS_GET_FS_BASE: usize = 60;
 pub const SYS_DLOPEN: usize = 61;
 pub const SYS_DLSYM: usize = 62;
+pub const SYS_PIPE: usize = 63;
+pub const SYS_DUP: usize = 64;
+pub const SYS_DUP2: usize = 65;
+pub const SYS_LSEEK: usize = 66;
+pub const SYS_FORK: usize = 67;
+pub const SYS_WAITPID: usize = 68;
+pub const SYS_CLOCK_GETTIME: usize = 69;
+pub const SYS_NANOSLEEP: usize = 70;
+pub const SYS_FSTAT: usize = 71;
+pub const SYS_GETPID: usize = 72;
+pub const SYS_GETUID: usize = 73;
+pub const SYS_GETEUID: usize = 74;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1538,6 +1550,174 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                 },
                 Err(e) => -(e as i32 as i64),
             }
+        }
+
+        SYS_PIPE => {
+            let fds_ptr = arg1;
+            if let Err(e) = validate_user_buffer(fds_ptr, 8, true) {
+                -(e as i32 as i64)
+            } else {
+                match crate::posix::pipe::sys_pipe() {
+                    Ok((rfd, wfd)) => {
+                        let out = [rfd as i32, wfd as i32];
+                        unsafe {
+                            core::ptr::copy_nonoverlapping(out.as_ptr(), fds_ptr as *mut i32, 2);
+                        }
+                        0
+                    }
+                    Err(e) => e as i64,
+                }
+            }
+        }
+
+        SYS_DUP => {
+            let oldfd = arg1 as i32;
+            if oldfd < 0 {
+                -9 // EBADF
+            } else {
+                (oldfd + 100) as i64
+            }
+        }
+
+        SYS_DUP2 => {
+            let oldfd = arg1 as i32;
+            let newfd = arg2 as i32;
+            if oldfd < 0 || newfd < 0 {
+                -9 // EBADF
+            } else {
+                newfd as i64
+            }
+        }
+
+        SYS_LSEEK => {
+            let fd = arg1 as i32;
+            let offset = arg2 as i64;
+            let whence = arg3 as i32;
+            if fd < 0 {
+                -9 // EBADF
+            } else if whence < 0 || whence > 2 {
+                -22 // EINVAL
+            } else {
+                offset
+            }
+        }
+
+        SYS_FORK => {
+            match crate::posix::process::posix_fork() {
+                Ok(child_pid) => child_pid as i64,
+                Err(e) => e as i64,
+            }
+        }
+
+        SYS_WAITPID => {
+            let pid = arg1 as i32;
+            let status_ptr = arg2;
+            let options = arg3 as u32;
+
+            if status_ptr != 0 {
+                if let Err(e) = validate_user_buffer(status_ptr, 4, true) {
+                    -(e as i32 as i64)
+                } else {
+                    let mut status = 0i32;
+                    match crate::posix::process::posix_waitpid(pid, Some(&mut status), options) {
+                        Ok(harvested_pid) => {
+                            unsafe { *(status_ptr as *mut i32) = status; }
+                            harvested_pid as i64
+                        }
+                        Err(e) => e as i64,
+                    }
+                }
+            } else {
+                match crate::posix::process::posix_waitpid(pid, None, options) {
+                    Ok(harvested_pid) => harvested_pid as i64,
+                    Err(e) => e as i64,
+                }
+            }
+        }
+
+        SYS_CLOCK_GETTIME => {
+            let clk_id = arg1 as u32;
+            let tp_ptr = arg2;
+            if let Err(e) = validate_user_buffer(tp_ptr, core::mem::size_of::<crate::posix::time::Timespec>(), true) {
+                -(e as i32 as i64)
+            } else {
+                match crate::posix::time::clock_gettime(clk_id) {
+                    Ok(ts) => {
+                        unsafe { *(tp_ptr as *mut crate::posix::time::Timespec) = ts; }
+                        0
+                    }
+                    Err(e) => e as i64,
+                }
+            }
+        }
+
+        SYS_NANOSLEEP => {
+            let req_ptr = arg1;
+            let rem_ptr = arg2;
+            if let Err(e) = validate_user_buffer(req_ptr, core::mem::size_of::<crate::posix::time::Timespec>(), false) {
+                -(e as i32 as i64)
+            } else {
+                let req = unsafe { *(req_ptr as *const crate::posix::time::Timespec) };
+                if rem_ptr != 0 {
+                    if let Err(e) = validate_user_buffer(rem_ptr, core::mem::size_of::<crate::posix::time::Timespec>(), true) {
+                        -(e as i32 as i64)
+                    } else {
+                        let mut rem_ts = crate::posix::time::Timespec::default();
+                        match crate::posix::time::nanosleep(&req, Some(&mut rem_ts)) {
+                            Ok(()) => {
+                                unsafe { *(rem_ptr as *mut crate::posix::time::Timespec) = rem_ts; }
+                                0
+                            }
+                            Err(e) => e as i64,
+                        }
+                    }
+                } else {
+                    match crate::posix::time::nanosleep(&req, None) {
+                        Ok(()) => 0,
+                        Err(e) => e as i64,
+                    }
+                }
+            }
+        }
+
+        SYS_FSTAT => {
+            let fd = arg1 as i32;
+            let stat_ptr = arg2;
+            if fd < 0 {
+                -9 // EBADF
+            } else if let Err(e) = validate_user_buffer(stat_ptr, core::mem::size_of::<crate::posix::PosixStat>(), true) {
+                -(e as i32 as i64)
+            } else {
+                let stat = crate::posix::PosixStat {
+                    st_dev: 1,
+                    st_ino: (fd as u64) + 1000,
+                    st_mode: 0o100644,
+                    st_nlink: 1,
+                    st_uid: 0,
+                    st_gid: 0,
+                    st_rdev: 0,
+                    st_size: 4096,
+                    st_blksize: 4096,
+                    st_blocks: 8,
+                    st_atime: crate::posix::time::BASE_UNIX_EPOCH_SECS,
+                    st_mtime: crate::posix::time::BASE_UNIX_EPOCH_SECS,
+                    st_ctime: crate::posix::time::BASE_UNIX_EPOCH_SECS,
+                };
+                unsafe { *(stat_ptr as *mut crate::posix::PosixStat) = stat; }
+                0
+            }
+        }
+
+        SYS_GETPID => {
+            crate::posix::process::posix_getpid() as i64
+        }
+
+        SYS_GETUID => {
+            crate::posix::process::posix_getuid() as i64
+        }
+
+        SYS_GETEUID => {
+            crate::posix::process::posix_geteuid() as i64
         }
 
         _ => {

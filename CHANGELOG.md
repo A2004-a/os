@@ -2,6 +2,32 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [1.4.0] - 2026-11-14 — Post-1.0 Milestone M13 (musl libc Port + POSIX Layer)
+
+### Added
+- **POSIX Anonymous Pipe Subsystem (`kernel/src/posix/pipe.rs`):**
+  - Unidirectional byte streams with 4096-byte circular ring buffers (`PIPE_MANAGER`).
+  - Read/write endpoint handle separation with high-bit encoding (`0x8000_0000`).
+  - Reader and writer reference counting with automatic clean teardown.
+  - End-of-file (EOF) semantics on closed writers and `-EPIPE` (-32) error generation on writes to closed readers.
+  - Integrated with native system call dispatcher via `SYS_PIPE` (63).
+- **POSIX Process Management & Credentials (`kernel/src/posix/process.rs`):**
+  - Process cloning primitive `SYS_FORK` (67) with page table inheritance and child context creation.
+  - Process status harvesting `SYS_WAITPID` (68) supporting `WIFEXITED`, `WEXITSTATUS`, and `WNOHANG`.
+  - POSIX process identity queries: `SYS_GETPID` (72), `SYS_GETUID` (73), `SYS_GETEUID` (74), and parent PID query `posix_getppid`.
+- **POSIX High-Resolution Clocks & Timers (`kernel/src/posix/time.rs`):**
+  - Nanosecond-granularity `Timespec` representation and arithmetic.
+  - `SYS_CLOCK_GETTIME` (69) supporting `CLOCK_REALTIME` (based on UNIX epoch `1794614400`) and `CLOCK_MONOTONIC`.
+  - `SYS_NANOSLEEP` (70) high-resolution delay with remainder tracking and calibrated hardware delays across interrupt states.
+- **POSIX File Abstractions (`kernel/src/posix/mod.rs`):**
+  - Standard file descriptor duplication via `SYS_DUP` (64) and `SYS_DUP2` (65).
+  - Explicit cursor seeking via `SYS_LSEEK` (66) supporting `SEEK_SET`, `SEEK_CUR`, and `SEEK_END`.
+  - POSIX metadata inspection via `SYS_FSTAT` (71) returning populated `PosixStat` structures.
+- **musl libc ABI Translation Layer (`kernel/src/posix/mod.rs`):**
+  - Complete Linux x86_64 system call translation table (`translate_linux_syscall`) mapping musl libc syscall numbers (0 to 228) into native NovaOS kernel gates.
+- **Milestone M13 Verification Suite (`kernel/src/posix/m13_tests.rs`):**
+  - 16 automated test gates passing 16/16 in QEMU hardware emulation (251/251 total system gates passing, 0 errors). Real output recorded in `docs/evidence/M13.md`.
+
 ## [1.3.0] - 2026-11-14 — Post-1.0 Milestone M12 (Userspace Threads, Futex, Dynamic Linking)
 
 ### Added

@@ -17,6 +17,7 @@ use novaos_apex_kernel::memory;
 use novaos_apex_kernel::network;
 use novaos_apex_kernel::objects;
 use novaos_apex_kernel::package;
+use novaos_apex_kernel::posix;
 use novaos_apex_kernel::process;
 use novaos_apex_kernel::recovery;
 use novaos_apex_kernel::scheduler;
@@ -267,6 +268,14 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL] Milestone M12 (Userspace Threads, Futex, Dynamic Linking) certified with 16 passing gates!\n");
     } else {
         serial::write_str("[KERNEL WARN] Milestone M12 encountered anomalies.\n");
+    }
+
+    // 17c. Run Post-1.0 Milestone M13 (musl libc Port & POSIX Layer) Verification Suite (16 Gates)
+    let m13_post10_passed = posix::m13_tests::run_all_m13_tests();
+    if m13_post10_passed {
+        serial::write_str("[KERNEL] Milestone M13 (musl libc Port & POSIX Layer) certified with 16 passing gates!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Milestone M13 encountered anomalies.\n");
     }
 
     // 14. Run Milestone 4 Verification Test Suite & Spawn PID 1
