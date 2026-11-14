@@ -74,6 +74,9 @@ def run_test(timeout_sec=60):
                 if "[M13 RESULT] ALL 16 M13 GATES PASSED (0 ERRORS)" in line:
                     print("\n[TEST RUNNER] Detected Milestone M13 (musl libc Port & POSIX Layer) 16-Gate Verification PASS!")
 
+                if "[M14 RESULT] ALL 16 M14 GATES PASSED (0 ERRORS)" in line:
+                    print("\n[TEST RUNNER] Detected Milestone M14 (Coreutils, MicroPython, WASM) 16-Gate Verification PASS!")
+
                 if "PID 1 entering steady-state supervisory loop" in line:
                     print("\n[TEST RUNNER] Detected PID 1 Steady-State Supervisory Loop & Full Kernel Certification!")
                     success = True

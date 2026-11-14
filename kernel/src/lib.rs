@@ -20,6 +20,7 @@ pub mod panic;
 pub mod posix;
 pub mod process;
 pub mod recovery;
+pub mod runtime;
 pub mod scheduler;
 pub mod security;
 pub mod storage;

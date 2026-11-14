@@ -2,6 +2,25 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [1.5.0] - 2026-11-14 — Post-1.0 Milestone M14 (Busybox Coreutils, MicroPython, WASM Runtime)
+
+### Added
+- **Busybox-Style Core Utilities Multi-Call Engine (`kernel/src/runtime/coreutils.rs`):**
+  - Unified multi-call dispatcher routing `argv[0]` across 22 standard applets: `echo`, `cat`, `head`, `tail`, `wc`, `grep`, `pwd`, `uname`, `whoami`, `ps`, `kill`, `df`, `free`, `touch`, `mkdir`, `rm`, `cp`, `mv`, `true`, `false`.
+  - Streaming text processors (`grep` with case insensitivity and inverted match, `wc` lines/words/bytes counter, `head`, `tail`).
+  - Seamless inter-utility pipe streaming chaining coreutils across M13 anonymous pipes.
+- **Embedded MicroPython Scripting Runtime (`kernel/src/runtime/micropython.rs`):**
+  - `#![no_std]` compliant Python bytecode and AST evaluation engine with dynamic typing (`PyValue`: Int, Bool, Str, List, None).
+  - Arithmetic operations, binary comparisons, variable environments, loops (`while`), conditional branching (`if`/`else`), and built-in functions (`print`, `len`, `range`).
+  - Single-quoted and double-quoted string literal isolation and boundary handling.
+- **WebAssembly (WASM) Sandboxed Execution VM (`kernel/src/runtime/wasm.rs`):**
+  - WebAssembly MVP binary format decoder (`\0asm` version 1) parsing Type, Function, Memory, Export, and Code sections.
+  - Linear memory manager with 64 KiB page granularity and strict out-of-bounds boundary validation.
+  - Stack VM supporting `i32.const`, `i32.add`, `i32.sub`, `i32.mul`, `i32.div_s`, `local.get`, `local.set`, `i32.load`, `i32.store`.
+  - Fuel/gas metering and unmapped memory trapping enforcing total sandbox isolation.
+- **Milestone M14 Verification Suite (`kernel/src/runtime/m14_tests.rs`):**
+  - 16 certified automated test gates verifying all M14 capabilities in QEMU (267/267 total system gates passing, 0 errors). Real output recorded in `docs/evidence/M14.md`.
+
 ## [1.4.0] - 2026-11-14 — Post-1.0 Milestone M13 (musl libc Port + POSIX Layer)
 
 ### Added

@@ -37,8 +37,8 @@ Following the mandatory sequence in Section 21:
 | **M11** | **virtio-gpu display, clipboard service, drag and drop** | **DONE** | 16/16 gates certified in `docs/evidence/M11.md`. |
 | **M12** | **userspace threads, futex syscall, dynamic linking (ELF shared libs, loader)** | **DONE** | 16/16 gates certified in `docs/evidence/M12.md`. |
 | **M13** | **musl libc port + POSIX layer (files, processes, pipes, sockets, threads, time)** | **DONE** | 16/16 gates certified in `docs/evidence/M13.md`. |
-| **M14** | busybox-style coreutils, MicroPython, WASM runtime (wasmi) for sandboxed apps | **TARGET** | Next active milestone to implement. |
-| **M15** | USB xHCI + USB HID, AHCI/SATA, NVMe (behind the existing block layer) | QUEUED | Drivers exist in kernel; requires block layer unification. |
+| **M14** | **busybox-style coreutils, MicroPython, WASM runtime (wasmi) for sandboxed apps** | **DONE** | 16/16 gates certified in `docs/evidence/M14.md`. |
+| **M15** | USB xHCI + USB HID, AHCI/SATA, NVMe (behind the existing block layer) | **TARGET** | Next active milestone to implement. |
 | **M16** | SMP (AP startup, per-CPU data, per-CPU scheduler queues), demand paging, swap | QUEUED | Blocked on M15 completion. |
 | **M17** | minimal browser, audio/video decoders, virtio-snd then Intel HDA | QUEUED | Intel HDA exists in kernel; virtio-snd and decoders queued. |
 | **M18** | ACPI AML interpreter, battery, suspend (S3), touchpad (I2C-HID) | QUEUED | Blocked on M17 completion. |
@@ -49,6 +49,6 @@ Following the mandatory sequence in Section 21:
 
 ## 3. Current Target Milestone
 
-- **Milestone:** **M14**
-- **Goal:** busybox-style coreutils, MicroPython, WASM runtime (wasmi) for sandboxed apps.
-- **Pre-conditions:** M0–M13 verified DONE in `docs/evidence/M13.md` (251 passing gates).
+- **Milestone:** **M15**
+- **Goal:** USB xHCI + USB HID, AHCI/SATA, NVMe (behind the existing block layer).
+- **Pre-conditions:** M0–M14 verified DONE in `docs/evidence/M14.md` (267 passing gates).

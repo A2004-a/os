@@ -20,6 +20,7 @@ use novaos_apex_kernel::package;
 use novaos_apex_kernel::posix;
 use novaos_apex_kernel::process;
 use novaos_apex_kernel::recovery;
+use novaos_apex_kernel::runtime;
 use novaos_apex_kernel::scheduler;
 use novaos_apex_kernel::security;
 use novaos_apex_kernel::serial;
@@ -276,6 +277,14 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL] Milestone M13 (musl libc Port & POSIX Layer) certified with 16 passing gates!\n");
     } else {
         serial::write_str("[KERNEL WARN] Milestone M13 encountered anomalies.\n");
+    }
+
+    // 17d. Run Post-1.0 Milestone M14 (Coreutils, MicroPython, WASM Runtime) Verification Suite (16 Gates)
+    let m14_post10_passed = runtime::m14_tests::run_all_m14_tests();
+    if m14_post10_passed {
+        serial::write_str("[KERNEL] Milestone M14 (Coreutils, MicroPython, WASM) certified with 16 passing gates!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Milestone M14 encountered anomalies.\n");
     }
 
     // 14. Run Milestone 4 Verification Test Suite & Spawn PID 1
