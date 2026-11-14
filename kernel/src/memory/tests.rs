@@ -194,8 +194,8 @@ fn test_kernel_heap() -> bool {
     }
 
     // Validate canaries
-    let prefix = unsafe { *(ptr1.sub(16) as *const u64) };
-    let suffix = unsafe { *(ptr1.add(64) as *const u64) };
+    let prefix = unsafe { core::ptr::read_unaligned(ptr1.sub(16) as *const u64) };
+    let suffix = unsafe { core::ptr::read_unaligned(ptr1.add(64) as *const u64) };
     if prefix != CANARY_PREFIX || suffix != CANARY_SUFFIX {
         serial::write_str("  [FAIL] Heap canary validation failed\n");
         return false;

@@ -54,6 +54,9 @@ pub struct Process {
     pub user_heap_end: u64,
     pub cpu_ticks: u64,
     pub exit_code: Option<i32>,
+    pub credentials: crate::security::Credentials,
+    pub cwd: alloc::string::String,
+    pub open_files: Vec<Option<crate::fs::vfs::OpenFile>>,
 }
 
 impl Process {
@@ -80,6 +83,41 @@ impl Process {
             user_heap_end:   0x0000_1000_0000,
             cpu_ticks: 0,
             exit_code: None,
+            credentials: if id == ProcessId::KERNEL {
+                crate::security::Credentials::root()
+            } else {
+                crate::security::Credentials::user(1000, 1000)
+            },
+            cwd: alloc::string::String::from("/"),
+            open_files: alloc::vec![None, None, None],
+        }
+    }
+
+    pub fn alloc_fd(&mut self, file: crate::fs::vfs::OpenFile) -> usize {
+        for (i, slot) in self.open_files.iter_mut().enumerate() {
+            if i >= 3 && slot.is_none() {
+                *slot = Some(file);
+                return i;
+            }
+        }
+        self.open_files.push(Some(file));
+        self.open_files.len() - 1
+    }
+
+    pub fn get_file(&self, fd: usize) -> Option<&crate::fs::vfs::OpenFile> {
+        self.open_files.get(fd)?.as_ref()
+    }
+
+    pub fn get_file_mut(&mut self, fd: usize) -> Option<&mut crate::fs::vfs::OpenFile> {
+        self.open_files.get_mut(fd)?.as_mut()
+    }
+
+    pub fn close_fd(&mut self, fd: usize) -> bool {
+        if fd < self.open_files.len() && self.open_files[fd].is_some() {
+            self.open_files[fd] = None;
+            true
+        } else {
+            false
         }
     }
 

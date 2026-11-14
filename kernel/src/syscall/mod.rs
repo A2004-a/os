@@ -29,6 +29,13 @@ pub const SYS_MAP_MEMORY: usize = 11;
 pub const SYS_UNMAP_MEMORY: usize = 12;
 pub const SYS_SEND_IPC: usize = 13;
 pub const SYS_RECEIVE_IPC: usize = 14;
+pub const SYS_STAT: usize = 15;
+pub const SYS_READDIR: usize = 16;
+pub const SYS_MKDIR: usize = 17;
+pub const SYS_UNLINK: usize = 18;
+pub const SYS_CHDIR: usize = 19;
+pub const SYS_GETCWD: usize = 20;
+pub const SYS_SEEK: usize = 21;
 
 #[no_mangle]
 pub fn handle_syscall(ctx: &mut ExceptionContext) {
@@ -52,7 +59,7 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
         }
 
         SYS_READ => {
-            let handle = arg1 as u32;
+            let handle = arg1 as usize;
             let buf_ptr = arg2;
             let len = arg3 as usize;
 
@@ -72,11 +79,17 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                     0
                 }
             } else {
-                // Typed handle verification
+                let out_buf = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len) };
                 if let Some(proc) = crate::process::get_current_process_mut() {
-                    match proc.handle_table.get(Handle(handle), ObjectType::File, CapabilityRights::READ) {
-                        Ok(_) => len as i64, // Mock read from open file object
-                        Err(_) => -1,
+                    if let Some(file) = proc.get_file_mut(handle) {
+                        match file.read(out_buf) {
+                            Ok(n) => n as i64,
+                            Err(e) => e.to_errno(),
+                        }
+                    } else if let Ok(_) = proc.handle_table.get(Handle(handle as u32), ObjectType::File, CapabilityRights::READ) {
+                        len as i64 // Backward compatibility with mock handle
+                    } else {
+                        -9 // EBADF
                     }
                 } else {
                     -1
@@ -85,7 +98,7 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
         }
 
         SYS_WRITE => {
-            let handle = arg1 as u32;
+            let handle = arg1 as usize;
             let buf_ptr = arg2;
             let len = arg3 as usize;
 
@@ -104,11 +117,17 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                 }
                 len as i64
             } else {
-                // Typed handle verification
+                let in_buf = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };
                 if let Some(proc) = crate::process::get_current_process_mut() {
-                    match proc.handle_table.get(Handle(handle), ObjectType::File, CapabilityRights::WRITE) {
-                        Ok(_) => len as i64,
-                        Err(_) => -1,
+                    if let Some(file) = proc.get_file_mut(handle) {
+                        match file.write(in_buf) {
+                            Ok(n) => n as i64,
+                            Err(e) => e.to_errno(),
+                        }
+                    } else if let Ok(_) = proc.handle_table.get(Handle(handle as u32), ObjectType::File, CapabilityRights::WRITE) {
+                        len as i64 // Backward compatibility with mock handle
+                    } else {
+                        -9 // EBADF
                     }
                 } else {
                     -1
@@ -118,22 +137,38 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
 
         SYS_OPEN => {
             let path_ptr = arg1;
-            let _flags = arg2 as u32;
+            let flags = arg2 as u32;
+            let mode = (arg3 as u32) & 0o7777;
 
             match validate_user_string(path_ptr, 256) {
-                Ok(_path) => {
-                    // Create typed handle in current process handle table
+                Ok(path_str) => {
                     if let Some(proc) = crate::process::get_current_process_mut() {
-                        let payload = ObjectPayload::File(FileObject {
-                            inode: 1,
-                            path: [0u8; 64],
-                            size: 0,
-                            cursor: 0,
-                        });
-                        let rights = CapabilityRights::READ | CapabilityRights::WRITE | CapabilityRights::CLOSE;
-                        match proc.handle_table.insert_object(payload, rights) {
-                            Ok(h) => h.0 as i64,
-                            Err(_) => -24, // EMFILE
+                        let creds = proc.credentials;
+                        let full_path = crate::fs::path::normalize_path(&proc.cwd, path_str);
+                        let vfs_guard = crate::fs::vfs::get_vfs();
+                        if let Some(vfs_lock) = vfs_guard {
+                            if let Some(vfs) = vfs_lock.as_ref() {
+                                match vfs.open(&full_path, flags, mode, &creds) {
+                                    Ok(open_file) => {
+                                        let fd = proc.alloc_fd(open_file);
+                                        // Also add typed handle for backward compat
+                                        let payload = ObjectPayload::File(FileObject {
+                                            inode: 1,
+                                            path: [0u8; 64],
+                                            size: 0,
+                                            cursor: 0,
+                                        });
+                                        let rights = CapabilityRights::READ | CapabilityRights::WRITE | CapabilityRights::CLOSE;
+                                        let _ = proc.handle_table.insert_object(payload, rights);
+                                        fd as i64
+                                    }
+                                    Err(e) => e.to_errno(),
+                                }
+                            } else {
+                                -5 // EIO
+                            }
+                        } else {
+                            -5 // EIO
                         }
                     } else {
                         -1
@@ -144,11 +179,14 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
         }
 
         SYS_CLOSE => {
-            let handle = arg1 as u32;
+            let handle = arg1 as usize;
             if let Some(proc) = crate::process::get_current_process_mut() {
-                match proc.handle_table.close(Handle(handle)) {
-                    Ok(_) => 0,
-                    Err(_) => -9, // EBADF
+                let closed_fd = proc.close_fd(handle);
+                let _ = proc.handle_table.close(Handle(handle as u32));
+                if closed_fd || handle < 3 {
+                    0
+                } else {
+                    -9 // EBADF
                 }
             } else {
                 -1
@@ -313,6 +351,217 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                     Ok(bytes_received) => bytes_received as i64,
                     Err(code) => code as i64,
                 }
+            }
+        }
+
+        SYS_STAT => {
+            let path_ptr = arg1;
+            let stat_ptr = arg2;
+
+            if let Err(e) = validate_user_buffer(stat_ptr, core::mem::size_of::<crate::fs::types::FileStat>(), true) {
+                -(e as i32 as i64)
+            } else {
+                match validate_user_string(path_ptr, 256) {
+                    Ok(path_str) => {
+                        if let Some(proc) = crate::process::get_current_process_mut() {
+                            let creds = proc.credentials;
+                            let full_path = crate::fs::path::normalize_path(&proc.cwd, path_str);
+                            if let Some(vfs_lock) = crate::fs::vfs::get_vfs() {
+                                if let Some(vfs) = vfs_lock.as_ref() {
+                                    match vfs.stat(&full_path, &creds) {
+                                        Ok(st) => {
+                                            unsafe { *(stat_ptr as *mut crate::fs::types::FileStat) = st; }
+                                            0
+                                        }
+                                        Err(e) => e.to_errno(),
+                                    }
+                                } else {
+                                    -5
+                                }
+                            } else {
+                                -5
+                            }
+                        } else {
+                            -1
+                        }
+                    }
+                    Err(e) => -(e as i32 as i64),
+                }
+            }
+        }
+
+        SYS_READDIR => {
+            let path_ptr = arg1;
+            let offset = arg2 as usize;
+            let entry_ptr = arg3;
+
+            if let Err(e) = validate_user_buffer(entry_ptr, core::mem::size_of::<crate::fs::types::UserDirEntry>(), true) {
+                -(e as i32 as i64)
+            } else {
+                match validate_user_string(path_ptr, 256) {
+                    Ok(path_str) => {
+                        if let Some(proc) = crate::process::get_current_process_mut() {
+                            let creds = proc.credentials;
+                            let full_path = crate::fs::path::normalize_path(&proc.cwd, path_str);
+                            if let Some(vfs_lock) = crate::fs::vfs::get_vfs() {
+                                if let Some(vfs) = vfs_lock.as_ref() {
+                                    match vfs.readdir(&full_path, offset, &creds) {
+                                        Ok(Some(entry)) => {
+                                            let user_entry = crate::fs::types::UserDirEntry::new(
+                                                entry.inode.0,
+                                                entry.file_type,
+                                                &entry.name,
+                                            );
+                                            unsafe { *(entry_ptr as *mut crate::fs::types::UserDirEntry) = user_entry; }
+                                            1 // 1 entry returned
+                                        }
+                                        Ok(None) => 0, // End of directory
+                                        Err(e) => e.to_errno(),
+                                    }
+                                } else {
+                                    -5
+                                }
+                            } else {
+                                -5
+                            }
+                        } else {
+                            -1
+                        }
+                    }
+                    Err(e) => -(e as i32 as i64),
+                }
+            }
+        }
+
+        SYS_MKDIR => {
+            let path_ptr = arg1;
+            let mode = (arg2 as u32) & 0o7777;
+
+            match validate_user_string(path_ptr, 256) {
+                Ok(path_str) => {
+                    if let Some(proc) = crate::process::get_current_process_mut() {
+                        let creds = proc.credentials;
+                        let full_path = crate::fs::path::normalize_path(&proc.cwd, path_str);
+                        if let Some(vfs_lock) = crate::fs::vfs::get_vfs() {
+                            if let Some(vfs) = vfs_lock.as_ref() {
+                                match vfs.mkdir(&full_path, mode, &creds) {
+                                    Ok(()) => 0,
+                                    Err(e) => e.to_errno(),
+                                }
+                            } else {
+                                -5
+                            }
+                        } else {
+                            -5
+                        }
+                    } else {
+                        -1
+                    }
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_UNLINK => {
+            let path_ptr = arg1;
+
+            match validate_user_string(path_ptr, 256) {
+                Ok(path_str) => {
+                    if let Some(proc) = crate::process::get_current_process_mut() {
+                        let creds = proc.credentials;
+                        let full_path = crate::fs::path::normalize_path(&proc.cwd, path_str);
+                        if let Some(vfs_lock) = crate::fs::vfs::get_vfs() {
+                            if let Some(vfs) = vfs_lock.as_ref() {
+                                match vfs.unlink(&full_path, &creds) {
+                                    Ok(()) => 0,
+                                    Err(e) => e.to_errno(),
+                                }
+                            } else {
+                                -5
+                            }
+                        } else {
+                            -5
+                        }
+                    } else {
+                        -1
+                    }
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_CHDIR => {
+            let path_ptr = arg1;
+
+            match validate_user_string(path_ptr, 256) {
+                Ok(path_str) => {
+                    if let Some(proc) = crate::process::get_current_process_mut() {
+                        let creds = proc.credentials;
+                        let full_path = crate::fs::path::normalize_path(&proc.cwd, path_str);
+                        if let Some(vfs_lock) = crate::fs::vfs::get_vfs() {
+                            if let Some(vfs) = vfs_lock.as_ref() {
+                                match vfs.stat(&full_path, &creds) {
+                                    Ok(st) => {
+                                        if (st.mode & crate::security::S_IFDIR) != 0 {
+                                            proc.cwd = full_path;
+                                            0
+                                        } else {
+                                            -20 // ENOTDIR
+                                        }
+                                    }
+                                    Err(e) => e.to_errno(),
+                                }
+                            } else {
+                                -5
+                            }
+                        } else {
+                            -5
+                        }
+                    } else {
+                        -1
+                    }
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_GETCWD => {
+            let buf_ptr = arg1;
+            let max_len = arg2 as usize;
+
+            if let Err(e) = validate_user_buffer(buf_ptr, max_len, true) {
+                -(e as i32 as i64)
+            } else if let Some(proc) = crate::process::get_current_process_mut() {
+                let cwd_bytes = proc.cwd.as_bytes();
+                if cwd_bytes.len() + 1 > max_len {
+                    -28 // ENOSPC / ERANGE
+                } else {
+                    let out = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, max_len) };
+                    out[..cwd_bytes.len()].copy_from_slice(cwd_bytes);
+                    out[cwd_bytes.len()] = 0;
+                    cwd_bytes.len() as i64
+                }
+            } else {
+                -1
+            }
+        }
+
+        SYS_SEEK => {
+            let handle = arg1 as usize;
+            let offset = arg2 as i64;
+            let whence = arg3 as u32;
+
+            if let Some(proc) = crate::process::get_current_process_mut() {
+                if let Some(file) = proc.get_file_mut(handle) {
+                    match file.seek(offset, whence) {
+                        Ok(new_off) => new_off as i64,
+                        Err(e) => e.to_errno(),
+                    }
+                } else {
+                    -9 // EBADF
+                }
+            } else {
+                -1
             }
         }
 

@@ -27,7 +27,9 @@ impl<T> SpinLock<T> {
             data: UnsafeCell::new(data),
         }
     }
+}
 
+impl<T: ?Sized> SpinLock<T> {
     pub fn lock(&self) -> SpinLockGuard<'_, T> {
         let rflags = read_and_disable_interrupts();
         let mut spins: u64 = 0;

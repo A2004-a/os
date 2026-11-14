@@ -53,9 +53,10 @@ unsafe impl GlobalAlloc for LockedKernelHeap {
 
         let align = layout.align().max(16);
         let user_size = layout.size();
+        let aligned_user_size = (user_size + 7) & !7;
 
-        // Header: [CanaryPrefix (8 bytes)] [UserSize (8 bytes)] [User Data] [CanarySuffix (8 bytes)]
-        let total_size = 16 + user_size + 8;
+        // Header: [CanaryPrefix (8 bytes)] [UserSize (8 bytes)] [User Data (aligned_user_size)] [CanarySuffix (8 bytes)]
+        let total_size = 16 + aligned_user_size + 8;
 
         // Align current offset
         let current_ptr = storage_ptr.add(heap.offset);
@@ -78,16 +79,16 @@ unsafe impl GlobalAlloc for LockedKernelHeap {
 
         // Write prefix canary & size header
         let prefix_ptr = alloc_base as *mut u64;
-        *prefix_ptr = CANARY_PREFIX;
+        core::ptr::write_unaligned(prefix_ptr, CANARY_PREFIX);
         let size_ptr = alloc_base.add(8) as *mut u64;
-        *size_ptr = user_size as u64;
+        core::ptr::write_unaligned(size_ptr, user_size as u64);
 
         // User data pointer
         let user_ptr = alloc_base.add(16);
 
         // Write suffix canary
-        let suffix_ptr = user_ptr.add(user_size) as *mut u64;
-        *suffix_ptr = CANARY_SUFFIX;
+        let suffix_ptr = user_ptr.add(aligned_user_size) as *mut u64;
+        core::ptr::write_unaligned(suffix_ptr, CANARY_SUFFIX);
 
         user_ptr
     }
@@ -107,9 +108,10 @@ unsafe impl GlobalAlloc for LockedKernelHeap {
         }
 
         let alloc_base = ptr.sub(16);
-        let prefix = *(alloc_base as *const u64);
-        let stored_size = *(alloc_base.add(8) as *const u64) as usize;
-        let suffix = *(ptr.add(stored_size) as *const u64);
+        let prefix = core::ptr::read_unaligned(alloc_base as *const u64);
+        let stored_size = core::ptr::read_unaligned(alloc_base.add(8) as *const u64) as usize;
+        let aligned_stored_size = (stored_size + 7) & !7;
+        let suffix = core::ptr::read_unaligned(ptr.add(aligned_stored_size) as *const u64);
 
         // Double-free / corruption verification
         if prefix != CANARY_PREFIX {
@@ -126,7 +128,7 @@ unsafe impl GlobalAlloc for LockedKernelHeap {
         heap.dealloc_count += 1;
 
         // Poison memory on free to catch use-after-free
-        *(alloc_base as *mut u64) = 0xDEAD_DEAD_DEAD_DEAD;
+        core::ptr::write_unaligned(alloc_base as *mut u64, 0xDEAD_DEAD_DEAD_DEAD);
         core::ptr::write_bytes(ptr, 0xAA, stored_size);
     }
 }

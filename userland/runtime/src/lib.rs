@@ -19,6 +19,83 @@ pub const SYS_MAP_MEMORY: usize = 11;
 pub const SYS_UNMAP_MEMORY: usize = 12;
 pub const SYS_SEND_IPC: usize = 13;
 pub const SYS_RECEIVE_IPC: usize = 14;
+pub const SYS_STAT: usize = 15;
+pub const SYS_READDIR: usize = 16;
+pub const SYS_MKDIR: usize = 17;
+pub const SYS_UNLINK: usize = 18;
+pub const SYS_CHDIR: usize = 19;
+pub const SYS_GETCWD: usize = 20;
+pub const SYS_SEEK: usize = 21;
+
+pub const O_RDONLY: u32 = 0x0001;
+pub const O_WRONLY: u32 = 0x0002;
+pub const O_RDWR: u32 = 0x0003;
+pub const O_CREAT: u32 = 0x0100;
+pub const O_TRUNC: u32 = 0x0200;
+pub const O_APPEND: u32 = 0x0400;
+
+pub const SEEK_SET: u32 = 0;
+pub const SEEK_CUR: u32 = 1;
+pub const SEEK_END: u32 = 2;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FileStat {
+    pub inode: u64,
+    pub size: u64,
+    pub blocks: u64,
+    pub mode: u32,
+    pub uid: u32,
+    pub gid: u32,
+    pub file_type: u32,
+    pub nlink: u32,
+    pub atime: u64,
+    pub mtime: u64,
+    pub ctime: u64,
+}
+
+impl FileStat {
+    pub const fn empty() -> Self {
+        Self {
+            inode: 0,
+            size: 0,
+            blocks: 0,
+            mode: 0,
+            uid: 0,
+            gid: 0,
+            file_type: 0,
+            nlink: 0,
+            atime: 0,
+            mtime: 0,
+            ctime: 0,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct UserDirEntry {
+    pub inode: u64,
+    pub file_type: u32,
+    pub name_len: u32,
+    pub name: [u8; 128],
+}
+
+impl UserDirEntry {
+    pub const fn empty() -> Self {
+        Self {
+            inode: 0,
+            file_type: 0,
+            name_len: 0,
+            name: [0u8; 128],
+        }
+    }
+
+    pub fn name_str(&self) -> &str {
+        let len = (self.name_len as usize).min(128);
+        core::str::from_utf8(&self.name[..len]).unwrap_or("")
+    }
+}
 
 #[inline(always)]
 unsafe fn syscall0(num: usize) -> i64 {
@@ -243,6 +320,134 @@ pub fn receive_ipc(src_pid: u32, buf: &mut [u8]) -> Result<usize, i32> {
     };
     if ret >= 0 {
         Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 15. open_with_mode
+pub fn open_with_mode(path: &str, flags: u32, mode: u32) -> Result<u32, i32> {
+    let mut buf = [0u8; 256];
+    let len = path.len().min(255);
+    buf[..len].copy_from_slice(&path.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall3(SYS_OPEN, buf.as_ptr() as u64, flags as u64, mode as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as u32)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 16. stat
+pub fn stat(path: &str, stat_buf: &mut FileStat) -> Result<(), i32> {
+    let mut buf = [0u8; 256];
+    let len = path.len().min(255);
+    buf[..len].copy_from_slice(&path.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall2(SYS_STAT, buf.as_ptr() as u64, stat_buf as *mut FileStat as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 17. readdir
+pub fn readdir(path: &str, offset: usize, entry: &mut UserDirEntry) -> Result<bool, i32> {
+    let mut buf = [0u8; 256];
+    let len = path.len().min(255);
+    buf[..len].copy_from_slice(&path.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall3(SYS_READDIR, buf.as_ptr() as u64, offset as u64, entry as *mut UserDirEntry as u64)
+    };
+    if ret > 0 {
+        Ok(true) // Entry found
+    } else if ret == 0 {
+        Ok(false) // End of directory
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 18. mkdir
+pub fn mkdir(path: &str, mode: u32) -> Result<(), i32> {
+    let mut buf = [0u8; 256];
+    let len = path.len().min(255);
+    buf[..len].copy_from_slice(&path.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall2(SYS_MKDIR, buf.as_ptr() as u64, mode as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 19. unlink
+pub fn unlink(path: &str) -> Result<(), i32> {
+    let mut buf = [0u8; 256];
+    let len = path.len().min(255);
+    buf[..len].copy_from_slice(&path.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall1(SYS_UNLINK, buf.as_ptr() as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 20. chdir
+pub fn chdir(path: &str) -> Result<(), i32> {
+    let mut buf = [0u8; 256];
+    let len = path.len().min(255);
+    buf[..len].copy_from_slice(&path.as_bytes()[..len]);
+    buf[len] = 0;
+
+    let ret = unsafe {
+        syscall1(SYS_CHDIR, buf.as_ptr() as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 21. getcwd
+pub fn getcwd(buf: &mut [u8]) -> Result<usize, i32> {
+    let ret = unsafe {
+        syscall2(SYS_GETCWD, buf.as_mut_ptr() as u64, buf.len() as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 22. seek
+pub fn seek(handle: u32, offset: i64, whence: u32) -> Result<u64, i32> {
+    let ret = unsafe {
+        syscall3(SYS_SEEK, handle as u64, offset as u64, whence as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as u64)
     } else {
         Err(ret as i32)
     }

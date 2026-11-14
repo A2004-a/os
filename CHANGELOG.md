@@ -2,6 +2,56 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.5.0] - 2026-11-14 — Milestone 5 (Files, Storage, and User Profiles)
+
+### Added
+- **Virtual File System (VFS) Layer (`fs/vfs.rs` & `fs/path.rs`):**
+  - Unified `FileSystem` trait supporting `lookup`, `getattr`, `setattr`, `read`, `write`, `create`, `mkdir`, `unlink`, `rmdir`, `readdir`, and `truncate`.
+  - Dynamic mount table with longest-prefix match resolution and mount point isolation.
+  - Path canonicalization resolving absolute and relative paths, trailing slashes, `.`, and `..`.
+  - File descriptor abstraction (`OpenFile`) with read, write, seek (`SEEK_SET`, `SEEK_CUR`, `SEEK_END`), stat, and readdir.
+- **In-Memory RAMFS (`fs/ramfs.rs`):**
+  - High-performance in-memory root filesystem (`/`) populated on boot.
+  - Standard directory hierarchy: `/bin`, `/etc`, `/dev`, `/tmp`, `/var`, `/users`, `/storage`.
+  - Core system configuration databases:
+    - `/etc/os-release`: OS metadata and distribution identifiers.
+    - `/etc/hostname`: system hostname (`novaos-apex`).
+    - `/etc/passwd`: user accounts database (`root`, `system`, `apex`).
+    - `/etc/group`: user group database (`root`, `system`, `users`).
+    - `/etc/motd`: system greeting message.
+- **Device Filesystem (DevFS) (`fs/devfs.rs`):**
+  - Virtual device filesystem mounted under `/dev`.
+  - Special character and block device nodes:
+    - `/dev/null`: discards written bytes, returns EOF on read.
+    - `/dev/zero`: fills read buffer with zero bytes.
+    - `/dev/random` & `/dev/urandom`: pseudorandom entropy generator.
+    - `/dev/console`: streams output to serial and graphical text console.
+    - `/dev/serial`: raw COM1 serial port interface.
+    - `/dev/vda`: raw sector block device mapped to VirtIO block storage.
+    - `/dev/fb0`: linear GOP framebuffer memory device.
+- **NovaFS On-Disk Block Filesystem (`fs/novafs/mod.rs`):**
+  - 4 KiB block architecture with on-disk format (`NOVAFS01` superblock magic).
+  - Allocation bitmaps for inodes (up to 64 inodes) and data blocks.
+  - Inode table with 10 direct block pointers (40 KiB) and single indirect block pointer (4 MiB).
+  - Atomic transaction journal header and checkpoint commit counter.
+  - Crash-resilient block persistence across unmount and remount cycles on VirtIO block storage.
+- **Multi-User Security & Profiles (`security/user.rs`):**
+  - POSIX file mode bits (`rwxrwxrwx`) and file types (`S_IFREG`, `S_IFDIR`, `S_IFCHR`, `S_IFBLK`).
+  - `Uid` / `Gid` credentials model with superuser (`UID 0`) bypass and owner/group/other permission gating.
+  - User profile directory isolation (`/users/apex/` with `Desktop`, `Documents`, `Downloads`, `.config`).
+- **Filesystem System Calls (`syscall/mod.rs` & `userland/runtime/`):**
+  - Extended native syscall table from 14 to 21 system calls:
+    - `SYS_STAT (15)`: file and directory metadata query.
+    - `SYS_READDIR (16)`: directory contents iterator.
+    - `SYS_MKDIR (17)`: directory creation.
+    - `SYS_UNLINK (18)`: file removal.
+    - `SYS_CHDIR (19)`: working directory change.
+    - `SYS_GETCWD (20)`: current working directory query.
+    - `SYS_SEEK (21)`: file pointer repositioning.
+- **NovaOS Apex Command Shell (`userland/shell/`):**
+  - Interactive Ring 3 shell running at `apex@novaos:/$` with built-in utilities:
+    `help`, `uname`, `whoami`, `pwd`, `cd`, `ls`, `cat`, `echo`, `mkdir`, `touch`, `rm`, `stat`, `uptime`, `clear`, `exit`.
+
 ## [0.4.0] - 2026-11-14 — Milestone 4 (Scheduling, Processes, and Ring 3)
 
 ### Added
