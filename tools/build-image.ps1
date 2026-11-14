@@ -29,12 +29,18 @@ if ($Release) { $uefiArgs += "--release" }
 & cargo $uefiArgs
 
 # 2. Compile Kernel Core
-Write-Host "[2/3] Building NovaOS Kernel (x86_64-unknown-none)..." -ForegroundColor Yellow
+Write-Host "[2/4] Building NovaOS Kernel (x86_64-unknown-none)..." -ForegroundColor Yellow
 $kernelArgs = @("build", "--package", "novaos-kernel", "--target", "x86_64-unknown-none")
 if ($Release) { $kernelArgs += "--release" }
 & cargo $kernelArgs
 
-# 3. Create Output Boot Directory
+# 3. Compile Userland Init
+Write-Host "[3/4] Building NovaOS Userland Init (novaos-init)..." -ForegroundColor Yellow
+$initArgs = @("build", "--package", "novaos-init", "--target", "x86_64-unknown-none")
+if ($Release) { $initArgs += "--release" }
+& cargo $initArgs
+
+# 4. Create Output Boot Directory
 $buildDir = "build"
 if (-not (Test-Path $buildDir)) {
     New-Item -ItemType Directory -Path $buildDir | Out-Null
@@ -55,7 +61,7 @@ $loaderDst = Join-Path $efiDir "BOOTX64.EFI"
 foreach ($src in $loaderCandidates) {
     if (Test-Path $src) {
         Copy-Item $src $loaderDst -Force
-        Write-Host "[3/3] Created EFI payload: $loaderDst" -ForegroundColor Green
+        Write-Host "[4/4] Created EFI payload: $loaderDst" -ForegroundColor Green
         break
     }
 }
@@ -65,13 +71,21 @@ $kernelSrc = "target\x86_64-unknown-none\$targetMode\novaos-kernel"
 $kernelDst = Join-Path $buildDir "novaos.elf"
 if (Test-Path $kernelSrc) {
     Copy-Item $kernelSrc $kernelDst -Force
-    Write-Host "[3/3] Created kernel payload: $kernelDst" -ForegroundColor Green
+    Write-Host "[4/4] Created kernel payload: $kernelDst" -ForegroundColor Green
+}
+
+# Copy userland init ELF to root of boot partition
+$initSrc = "target\x86_64-unknown-none\$targetMode\novaos-init"
+$initDst = Join-Path $buildDir "init.elf"
+if (Test-Path $initSrc) {
+    Copy-Item $initSrc $initDst -Force
+    Write-Host "[4/4] Created userland init payload: $initDst" -ForegroundColor Green
 }
 
 # Copy boot configuration
 if (Test-Path "novaos.cfg") {
     Copy-Item "novaos.cfg" (Join-Path $buildDir "novaos.cfg") -Force
-    Write-Host "[3/3] Copied boot configuration: $buildDir\novaos.cfg" -ForegroundColor Green
+    Write-Host "[4/4] Copied boot configuration: $buildDir\novaos.cfg" -ForegroundColor Green
 }
 
 Write-Host "`n[SUCCESS] NovaOS Zero build sequence complete!" -ForegroundColor Green

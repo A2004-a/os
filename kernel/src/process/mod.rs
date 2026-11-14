@@ -1,5 +1,9 @@
 //! Process Control Block (PCB) & Address Space Isolation
 
+pub mod elf_loader;
+
+pub use elf_loader::{ElfError, ElfLoader, LoadedProgram};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProcessId(pub u64);
 

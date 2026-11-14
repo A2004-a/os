@@ -48,14 +48,17 @@ impl CapabilityHandle {
 }
 
 /// Validates that a user-supplied pointer and buffer length reside strictly within
-/// canonical lower-half user address space.
+/// canonical lower-half user address space, rejecting null pointers and zero-page references.
 pub fn validate_user_buffer(ptr: *const u8, len: usize) -> bool {
     let addr = ptr as u64;
+    if addr < 0x1000 {
+        return false; // Null pointer or zero-page protection
+    }
     let end_addr = match addr.checked_add(len as u64) {
         Some(a) => a,
-        None => return false, // Overflow detected
+        None => return false, // Arithmetic overflow detected
     };
 
-    // Userland boundary: 0x0000_7FFF_FFFF_FFFF
+    // Userland canonical boundary: strictly <= 0x0000_7FFF_FFFF_FFFF
     end_addr <= 0x0000_7FFF_FFFF_FFFF
 }

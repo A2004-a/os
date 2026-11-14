@@ -16,6 +16,9 @@ version = "0.1.0"
 [[package]]
 name = "novaos-init"
 version = "0.1.0"
+dependencies = [
+ "novaos-runtime",
+]
 
 [[package]]
 name = "novaos-kernel"

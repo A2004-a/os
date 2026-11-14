@@ -80,7 +80,7 @@ pub fn init_heap() {
     unsafe {
         // In M1 bootstrap, configure static heap buffer
         static mut STATIC_HEAP_STORAGE: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
-        let start = STATIC_HEAP_STORAGE.as_ptr() as usize;
+        let start = core::ptr::addr_of_mut!(STATIC_HEAP_STORAGE) as usize;
         ALLOCATOR.lock().init(start, HEAP_SIZE);
     }
 }

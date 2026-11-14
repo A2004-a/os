@@ -48,11 +48,11 @@ static mut GDT_ENTRIES: [u64; 7] = [
 pub fn init() {
     unsafe {
         // Set up IST 1 stack pointer for emergency double faults
-        let stack_end = EMERGENCY_STACK.as_ptr() as u64 + EMERGENCY_STACK_SIZE as u64;
+        let stack_end = core::ptr::addr_of_mut!(EMERGENCY_STACK) as u64 + EMERGENCY_STACK_SIZE as u64;
         TSS.ist[DOUBLE_FAULT_IST_INDEX] = stack_end;
 
         // Configure 16-byte TSS descriptor in GDT
-        let tss_addr = &raw const TSS as u64;
+        let tss_addr = core::ptr::addr_of_mut!(TSS) as u64;
         let tss_size = (size_of::<TaskStateSegment>() - 1) as u64;
 
         let limit_low = tss_size & 0xFFFF;
@@ -72,7 +72,7 @@ pub fn init() {
 
         let gdt_desc = GdtDescriptor {
             size: (size_of::<[u64; 7]>() - 1) as u16,
-            offset: GDT_ENTRIES.as_ptr() as u64,
+            offset: core::ptr::addr_of_mut!(GDT_ENTRIES) as u64,
         };
 
         // Load GDT
@@ -99,4 +99,40 @@ pub fn init() {
         // Load TSS selector (0x28)
         core::arch::asm!("ltr ax", in("ax") 0x28u16, options(nostack));
     }
+}
+
+/// Update TSS.rsp[0] so CPU interrupts/exceptions from Ring 3 switch to this kernel stack.
+pub fn set_kernel_stack(stack_top: u64) {
+    unsafe {
+        TSS.rsp[0] = stack_top;
+    }
+}
+
+/// Retrieve current TSS.rsp[0]
+pub fn get_kernel_stack() -> u64 {
+    unsafe { TSS.rsp[0] }
+}
+
+/// Transition CPU from Ring 0 to Ring 3 userspace via iretq.
+/// - CS: User Code 64-bit RPL=3 (0x23)
+/// - SS: User Data 64-bit RPL=3 (0x1B)
+/// - RFLAGS: 0x202 (Interrupt Enable flag)
+#[unsafe(naked)]
+pub unsafe extern "C" fn enter_user_mode(entry_rip: u64, user_rsp: u64) -> ! {
+    core::arch::naked_asm!(
+        // rdi = entry_rip, rsi = user_rsp
+        "mov ax, 0x1B",
+        "mov ds, ax",
+        "mov es, ax",
+        "mov fs, ax",
+        "mov gs, ax",
+
+        // Build iretq stack frame: SS, RSP, RFLAGS, CS, RIP
+        "push 0x1B",        // SS: User Data 64-bit RPL=3
+        "push rsi",         // RSP: User Stack Pointer
+        "push 0x202",       // RFLAGS: IF=1, bit 1=1
+        "push 0x23",        // CS: User Code 64-bit RPL=3
+        "push rdi",         // RIP: User Entry Point
+        "iretq"
+    );
 }

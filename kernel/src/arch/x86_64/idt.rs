@@ -39,6 +39,16 @@ impl IdtEntry {
         self.offset_high = (handler >> 32) as u32;
         self.zero = 0;
     }
+
+    pub fn set_user_handler(&mut self, handler: usize) {
+        self.offset_low = (handler & 0xFFFF) as u16;
+        self.selector = 0x08; // Kernel code segment
+        self.ist = 0;
+        self.type_attr = 0xEE; // Present, Ring 3 (DPL=3), 64-bit Interrupt Gate
+        self.offset_mid = ((handler >> 16) & 0xFFFF) as u16;
+        self.offset_high = (handler >> 32) as u32;
+        self.zero = 0;
+    }
 }
 
 #[repr(C, packed)]
@@ -78,7 +88,7 @@ pub struct InterruptContext {
 
 // Global exception callback router
 #[no_mangle]
-pub extern "C" fn exception_dispatcher(ctx: &InterruptContext) {
+pub extern "C" fn exception_dispatcher(ctx: &mut InterruptContext) {
     match ctx.int_num {
         0 => {
             serial_println!("\n[CPU EXCEPTION: #DE (Divide by Zero)]");
@@ -126,6 +136,16 @@ pub extern "C" fn exception_dispatcher(ctx: &InterruptContext) {
         }
         44 => {
             crate::drivers::ps2_mouse::on_mouse_interrupt();
+        }
+        128 => {
+            // Software Interrupt 0x80 System Call from Userspace
+            let res = crate::syscall::dispatch_syscall(
+                ctx.rax as usize,
+                ctx.rdi as usize,
+                ctx.rsi as usize,
+                ctx.rdx as usize,
+            );
+            ctx.rax = res as u64;
         }
         _ => {
             serial_println!("\n[CPU INTERRUPT / EXCEPTION: Vector {}]", ctx.int_num);
@@ -208,42 +228,46 @@ isr_err!(isr21, 21);    // #CP
 isr_no_err!(isr32, 32); // IRQ0 Timer
 isr_no_err!(isr33, 33); // IRQ1 Keyboard
 isr_no_err!(isr44, 44); // IRQ12 Mouse
+isr_no_err!(isr128, 128); // Vector 0x80 Userspace Syscall
 
 pub fn init() {
     unsafe {
         // Register CPU Architecture Exceptions
-        IDT_TABLE[0].set_handler(isr0 as usize, 0);
-        IDT_TABLE[1].set_handler(isr1 as usize, 0);
-        IDT_TABLE[2].set_handler(isr2 as usize, 0);
-        IDT_TABLE[3].set_handler(isr3 as usize, 0);
-        IDT_TABLE[4].set_handler(isr4 as usize, 0);
-        IDT_TABLE[5].set_handler(isr5 as usize, 0);
-        IDT_TABLE[6].set_handler(isr6 as usize, 0);
-        IDT_TABLE[7].set_handler(isr7 as usize, 0);
+        IDT_TABLE[0].set_handler(isr0 as *const () as usize, 0);
+        IDT_TABLE[1].set_handler(isr1 as *const () as usize, 0);
+        IDT_TABLE[2].set_handler(isr2 as *const () as usize, 0);
+        IDT_TABLE[3].set_handler(isr3 as *const () as usize, 0);
+        IDT_TABLE[4].set_handler(isr4 as *const () as usize, 0);
+        IDT_TABLE[5].set_handler(isr5 as *const () as usize, 0);
+        IDT_TABLE[6].set_handler(isr6 as *const () as usize, 0);
+        IDT_TABLE[7].set_handler(isr7 as *const () as usize, 0);
         // Vector 8 (#DF) uses IST 1 (index 1 in IDT entry field)
-        IDT_TABLE[8].set_handler(isr8 as usize, 1);
-        IDT_TABLE[9].set_handler(isr9 as usize, 0);
-        IDT_TABLE[10].set_handler(isr10 as usize, 0);
-        IDT_TABLE[11].set_handler(isr11 as usize, 0);
-        IDT_TABLE[12].set_handler(isr12 as usize, 0);
-        IDT_TABLE[13].set_handler(isr13 as usize, 0);
-        IDT_TABLE[14].set_handler(isr14 as usize, 0);
-        IDT_TABLE[15].set_handler(isr15 as usize, 0);
-        IDT_TABLE[16].set_handler(isr16 as usize, 0);
-        IDT_TABLE[17].set_handler(isr17 as usize, 0);
-        IDT_TABLE[18].set_handler(isr18 as usize, 0);
-        IDT_TABLE[19].set_handler(isr19 as usize, 0);
-        IDT_TABLE[20].set_handler(isr20 as usize, 0);
-        IDT_TABLE[21].set_handler(isr21 as usize, 0);
+        IDT_TABLE[8].set_handler(isr8 as *const () as usize, 1);
+        IDT_TABLE[9].set_handler(isr9 as *const () as usize, 0);
+        IDT_TABLE[10].set_handler(isr10 as *const () as usize, 0);
+        IDT_TABLE[11].set_handler(isr11 as *const () as usize, 0);
+        IDT_TABLE[12].set_handler(isr12 as *const () as usize, 0);
+        IDT_TABLE[13].set_handler(isr13 as *const () as usize, 0);
+        IDT_TABLE[14].set_handler(isr14 as *const () as usize, 0);
+        IDT_TABLE[15].set_handler(isr15 as *const () as usize, 0);
+        IDT_TABLE[16].set_handler(isr16 as *const () as usize, 0);
+        IDT_TABLE[17].set_handler(isr17 as *const () as usize, 0);
+        IDT_TABLE[18].set_handler(isr18 as *const () as usize, 0);
+        IDT_TABLE[19].set_handler(isr19 as *const () as usize, 0);
+        IDT_TABLE[20].set_handler(isr20 as *const () as usize, 0);
+        IDT_TABLE[21].set_handler(isr21 as *const () as usize, 0);
 
         // Hardware IRQ Interrupts
-        IDT_TABLE[32].set_handler(isr32 as usize, 0);
-        IDT_TABLE[33].set_handler(isr33 as usize, 0);
-        IDT_TABLE[44].set_handler(isr44 as usize, 0);
+        IDT_TABLE[32].set_handler(isr32 as *const () as usize, 0);
+        IDT_TABLE[33].set_handler(isr33 as *const () as usize, 0);
+        IDT_TABLE[44].set_handler(isr44 as *const () as usize, 0);
+
+        // Vector 128 (0x80) System Call Gate (DPL = 3)
+        IDT_TABLE[128].set_user_handler(isr128 as *const () as usize);
 
         let idt_desc = IdtDescriptor {
             size: (size_of::<[IdtEntry; 256]>() - 1) as u16,
-            offset: IDT_TABLE.as_ptr() as u64,
+            offset: core::ptr::addr_of_mut!(IDT_TABLE) as u64,
         };
 
         core::arch::asm!("lidt [{}]", in(reg) &idt_desc, options(nostack, readonly));
