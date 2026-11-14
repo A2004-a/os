@@ -184,6 +184,7 @@ impl AhciDriver {
         core::ptr::read_volatile(port_base as *const u32)
     }
 
+    #[allow(dead_code)]
     #[inline(always)]
     unsafe fn write_port(&self, port: usize, offset: usize, val: u32) {
         if self.abar != 0 {

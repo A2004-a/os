@@ -3,17 +3,24 @@
 
 pub const USER_SPACE_LIMIT: u64 = 0x0000_8000_0000_0000;
 
+#[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SyscallError {
-    BadPointer,
-    BufferOverflow,
-    KernelTamperingAttempt,
-    InvalidString,
-    BufferTooLarge,
-    BadAlignment,
-    InvalidHandle,
-    PermissionDenied,
-    InvalidArgument,
+    BadPointer = 14,             // EFAULT (14)
+    BufferOverflow = 22,         // EINVAL (22)
+    KernelTamperingAttempt = 1,  // EPERM (1)
+    InvalidString = 84,          // EILSEQ (84)
+    BufferTooLarge = 27,         // EFBIG (27)
+    BadAlignment = 71,           // EPROTO (71)
+    InvalidHandle = 9,           // EBADF (9)
+    PermissionDenied = 13,       // EACCES (13)
+    InvalidArgument = 23,        // ENFILE (23)
+}
+
+impl SyscallError {
+    pub fn to_errno(self) -> i64 {
+        -(self as i32 as i64)
+    }
 }
 
 /// Validates that a user-supplied buffer pointer and length reside strictly in userspace.

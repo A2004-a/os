@@ -20,6 +20,7 @@ use novaos_apex_kernel::package;
 use novaos_apex_kernel::process;
 use novaos_apex_kernel::recovery;
 use novaos_apex_kernel::scheduler;
+use novaos_apex_kernel::security;
 use novaos_apex_kernel::serial;
 use novaos_apex_kernel::syscall;
 
@@ -206,7 +207,17 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 11 WARN] Hardware Expansion encountered anomalies.\n");
     }
 
-    // 16. Initialize Scheduler & IPC Subsystems
+    // 16. Run Milestone 12 Hardening & Release Engineering Verification Suite
+    serial::write_str("\n[KERNEL] Initializing Milestone 12 Hardening & Release Subsystem...\n");
+    let m12_passed = security::tests::run_m12_verification_suite();
+    if m12_passed {
+        serial::write_str("\n[MILESTONE 12 VERIFIED] Adversarial fuzzing, memory leak audits, stress stability,\n");
+        serial::write_str("                        and production release conformance certified!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 12 WARN] Hardening & Release verification encountered anomalies.\n");
+    }
+
+    // 17. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 

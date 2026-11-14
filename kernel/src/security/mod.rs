@@ -1,6 +1,10 @@
 //! NovaOS Apex — Security Subsystem
-//! Implements user isolation, credentials, and access control.
+//! Implements user isolation, credentials, access control, adversarial fuzzing, and platform hardening.
 
+pub mod conformance;
+pub mod fuzzing;
+pub mod stress;
+pub mod tests;
 pub mod user;
 
 pub use user::{

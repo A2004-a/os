@@ -1,5 +1,6 @@
 /target
 /build
+/dist/novaos-apex-*/
 /node_modules
 *.efi
 *.img

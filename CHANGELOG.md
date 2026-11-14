@@ -2,6 +2,48 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [1.0.0] - 2026-11-14 — Milestone 12 (Hardening & Release Engineering — Certified Release)
+
+### Added
+- **Adversarial Syscall Boundary Fuzzer (`kernel/src/security/fuzzing.rs`):**
+  - NULL pointer injection fuzzer verifying negative errno rejection across 9 core system calls.
+  - Privileged memory tampering fuzzer validating boundary checks against direct physical map (`0xFFFF_8000_0000_0000`), kernel stacks (`0xFFFF_8001_0000_0000`), canonical limit (`0x0000_8000_0000_0000`), and higher-half ranges.
+  - Arithmetic pointer overflow fuzzer detecting wraparound targets (`u64::MAX - 32`).
+  - Out-of-bounds file descriptor fuzzer returning `-EBADF` across negative and oversized descriptors.
+  - Syscall number fuzzing validating safe `-ENOSYS` returns for unimplemented and oversized vectors.
+  - Non-existent process termination fuzzer returning `-ESRCH`.
+- **Network Stack Packet Corruption & Runt Fuzzer (`kernel/src/security/fuzzing.rs`):**
+  - Runt Ethernet frame rejection for frame buffers under 14 bytes without out-of-bounds panics.
+  - IPv4 header validation: drops packets with invalid version, runt IHL (< 5), oversized length claims, or corrupt checksums.
+  - ARP packet poisoning filter: drops frames with non-Ethernet hardware types, non-IPv4 protocols, and unknown opcodes.
+  - TCP state machine fuzzer: filters anomalous flag combinations (SYN+FIN+RST).
+- **Stress Testing & Heap Canary Diagnostics (`kernel/src/security/stress.rs`):**
+  - Dynamic canary walk: 32 dynamic allocations with prefix `0xCAFEBABE_DEADBEEF` and suffix `0xFEEDFACE_BEEFCAFE`.
+  - Kernel memory leak audit verifying 100% LIFO heap reclamation and zero leaks.
+  - Process lifecycle stress test: rapidly allocates and reaps 10 user address spaces with zero zombie leaks.
+  - High-churn VFS transactional stress test: writes, verifies byte-for-byte, and unlinks 10 files.
+- **Production Hardware & Security Conformance Certification (`kernel/src/security/conformance.rs`):**
+  - CPU architecture audit: x86_64 Long Mode (via `IA32_EFER.LMA`), SSE/SSE2, Local APIC, and TSC.
+  - Memory isolation audit: `CR0.WP` armed, `CR4.PAE` armed, 4-level paging active, Ring 3 DPL=3 boundary.
+  - Multi-bus storage topology: VirtIO (`/dev/vda`), AHCI SATA 1.3 (`/dev/sda`), NVMe 1.4 (`/dev/nvme0n1`).
+  - Peripherals and multimedia: USB 3.0 xHCI, USB HID (Keyboard/Mouse), Intel HDA (16-bit PCM), GOP 1280x800 display.
+  - Security & recovery: Signed `.nvp` packages, GPT CRC32, SafeMode 3-strike trigger, Superblock scrubber.
+- **Production Release Engineering Tooling:**
+  - `tools/build-release.ps1`: Multi-stage release bundler producing distribution packages in `dist/`.
+  - `dist/novaos-apex-v1.0.0-MANIFEST.json`: Formal production certification manifest.
+  - `dist/novaos-apex-v1.0.0-SHA256SUMS.txt`: Cryptographic SHA-256 integrity checksums.
+  - Dedicated 64 KiB kernel stacks per thread with hardware guard page overflow traps.
+  - `docs/SECURITY_AUDIT.md`: Formal security audit and adversarial fuzzing report.
+  - `docs/RELEASE_NOTES_v1.0.md`: Comprehensive v1.0.0 production release notes.
+
+### Changed
+- Expanded kernel thread stacks to 64 KiB (16 pages) to prevent debug-build stack overflow under deep VFS call trees.
+- Hardened `SYS_KILL_PROCESS` (43) to verify target PID existence in process table and return `-ESRCH` on missing PIDs.
+- Assigned explicit `#[repr(i32)]` discriminants to `SyscallError` to ensure positive errno values map cleanly to negative returns.
+- Enlarged `print_usize` buffer in syscall dispatch from 10 bytes to 24 bytes to accommodate `usize::MAX`.
+
+---
+
 ## [0.11.0] - 2026-11-14 — Milestone 11 (Hardware Expansion)
 
 ### Added

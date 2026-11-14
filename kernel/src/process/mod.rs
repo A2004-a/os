@@ -313,6 +313,34 @@ pub fn get_process_count() -> u32 {
     pm.processes.iter().filter(|p| p.is_some()).count() as u32
 }
 
+pub fn create_test_process(name: &str) -> Result<ProcessId, ProcessError> {
+    let pm = unsafe { &mut *addr_of_mut!(PROCESS_MANAGER) };
+    let free_idx = pm.processes.iter().position(|p| p.is_none())
+        .ok_or(ProcessError::ProcessTableFull)?;
+
+    let pid = ProcessId(pm.next_pid);
+    pm.next_pid += 1;
+
+    let pml4_phys = create_user_address_space()?;
+    let mut proc = Process::new(pid, Some(ProcessId::KERNEL), name, pml4_phys);
+    proc.allocated_frames.push(pml4_phys);
+    proc.state = ProcessState::Running;
+
+    pm.processes[free_idx] = Some(proc);
+    Ok(pid)
+}
+
+pub fn reap_terminated_processes() {
+    let pm = unsafe { &mut *addr_of_mut!(PROCESS_MANAGER) };
+    for slot in pm.processes.iter_mut() {
+        if let Some(ref p) = slot {
+            if matches!(p.state, ProcessState::Terminated(_)) {
+                *slot = None;
+            }
+        }
+    }
+}
+
 fn print_u32(mut n: u32) {
     if n == 0 {
         serial::write_str("0");

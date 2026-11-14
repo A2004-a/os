@@ -1029,9 +1029,11 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
             };
 
             if !is_root {
-                -1
+                -13 // EACCES
             } else if target_pid == 0 {
-                -1
+                -1  // EPERM
+            } else if crate::process::get_process_mut(crate::process::ProcessId(target_pid)).is_none() {
+                -3  // ESRCH: No such process
             } else {
                 crate::process::terminate_process(crate::process::ProcessId(target_pid), -9);
                 0
@@ -1343,14 +1345,39 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
     ctx.rax = result as u64;
 }
 
+pub fn dispatch_syscall(nr: usize, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> i64 {
+    let mut ctx = crate::arch::x86_64::exceptions::ExceptionContext {
+        r15: 0, r14: 0, r13: 0, r12: 0, r11: 0,
+        r10: arg4,
+        r9: 0,
+        r8: arg5,
+        rbp: 0,
+        rdi: arg1,
+        rsi: arg2,
+        rdx: arg3,
+        rcx: 0,
+        rbx: 0,
+        rax: nr as u64,
+        vector: 128,
+        error_code: 0,
+        rip: 0,
+        cs: 0x33,
+        rflags: 0x202,
+        rsp: 0,
+        ss: 0x2B,
+    };
+    handle_syscall(&mut ctx);
+    ctx.rax as i64
+}
+
 fn print_usize(mut n: usize) {
     if n == 0 {
         serial::write_str("0");
         return;
     }
-    let mut buf = [0u8; 10];
+    let mut buf = [0u8; 24];
     let mut i = 0;
-    while n > 0 {
+    while n > 0 && i < buf.len() {
         buf[i] = b'0' + (n % 10) as u8;
         n /= 10;
         i += 1;

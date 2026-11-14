@@ -127,6 +127,7 @@ impl HdaDriver {
         core::ptr::read_volatile((self.bar0 + offset as u64) as *const u16)
     }
 
+    #[allow(dead_code)]
     #[inline(always)]
     unsafe fn write_reg16(&self, offset: usize, val: u16) {
         if self.bar0 != 0 {
@@ -134,12 +135,14 @@ impl HdaDriver {
         }
     }
 
+    #[allow(dead_code)]
     #[inline(always)]
     unsafe fn read_reg8(&self, offset: usize) -> u8 {
         if self.bar0 == 0 { return 0; }
         core::ptr::read_volatile((self.bar0 + offset as u64) as *const u8)
     }
 
+    #[allow(dead_code)]
     #[inline(always)]
     unsafe fn write_reg8(&self, offset: usize, val: u8) {
         if self.bar0 != 0 {

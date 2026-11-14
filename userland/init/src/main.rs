@@ -34,8 +34,8 @@ pub extern "C" fn _start() -> ! {
     print(" ms\n");
 
     // 4. Test memory mapping system calls
-    print("[INIT] [SYSCALL 11/14] Testing sys_map_memory() at 0x20000000 (4096 bytes)...\n");
-    match map_memory(0x20000000, 4096, 0) {
+    print("[INIT] [SYSCALL 11/14] Testing sys_map_memory() at 0x50000000 (4096 bytes)...\n");
+    match map_memory(0x50000000, 4096, 0) {
         Ok(mapped_addr) => {
             print("[INIT] Successfully mapped page at virtual address 0x");
             print_hex_u64(mapped_addr);

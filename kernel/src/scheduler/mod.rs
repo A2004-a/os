@@ -65,8 +65,8 @@ pub fn init() {
         let sched = &mut *addr_of_mut!(SCHEDULER);
         sched.kernel_cr3 = read_cr3();
 
-        // 1. Allocate dedicated 16 KiB kernel stack for Idle thread
-        let stack = KernelStack::allocate(4).expect("Failed to allocate idle thread stack");
+        // 1. Allocate dedicated 64 KiB kernel stack for Idle thread
+        let stack = KernelStack::allocate(16).expect("Failed to allocate idle thread stack");
         let idle_thread = Thread::new_kernel(
             ThreadId::IDLE,
             "idle",
@@ -96,7 +96,7 @@ pub fn spawn_kernel_thread(
         let free_idx = sched.threads.iter().position(|t| t.is_none())
             .ok_or(SchedulerError::TableFull)?;
 
-        let stack = KernelStack::allocate(4)
+        let stack = KernelStack::allocate(16)
             .map_err(|_| SchedulerError::StackAllocationFailed)?;
 
         let tid = ThreadId(sched.next_tid);
@@ -129,8 +129,8 @@ pub fn spawn_user_thread(
         let free_idx = sched.threads.iter().position(|t| t.is_none())
             .ok_or(SchedulerError::TableFull)?;
 
-        // Kernel stack for Ring 0 interrupts while this user thread runs
-        let kstack = KernelStack::allocate(4)
+        // Kernel stack for Ring 0 interrupts while this user thread runs (64 KiB)
+        let kstack = KernelStack::allocate(16)
             .map_err(|_| SchedulerError::StackAllocationFailed)?;
 
         let tid = ThreadId(sched.next_tid);

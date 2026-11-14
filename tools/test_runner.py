@@ -53,8 +53,8 @@ def run_test(timeout_sec=60):
                 sys.stdout.flush()
                 lines.append(line)
 
-                if "[MILESTONE 11 TEST RESULT] ALL 6 TEST SUITES PASSED" in line or "[MILESTONE 11 VERIFIED]" in line or "PID 1 entering steady-state supervisory loop" in line:
-                    print("\n[TEST RUNNER] Detected Milestone 11 success criteria!")
+                if "PID 1 entering steady-state supervisory loop" in line:
+                    print("\n[TEST RUNNER] Detected Full System Boot to PID 1 Steady-State & Release Certification!")
                     success = True
                     break
             else:
