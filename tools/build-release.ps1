@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     NovaOS Apex — Production Release Engineering & Distribution Image Builder (v1.0.0)
     Assembles production-hardened binary artifacts into a release distribution package.

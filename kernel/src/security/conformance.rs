@@ -70,67 +70,29 @@ pub fn test_platform_conformance() -> bool {
 }
 
 fn audit_conformance() -> ConformanceReport {
-    // 1. CPU Features via CPUID & IA32_EFER MSR
-    let edx_1: u32;
-    unsafe {
+    // 1. CPU Features via CPUID
+    let (edx_1, edx_ext) = unsafe {
+        let mut edx1: u32;
+        let mut edx_ext: u32;
         asm!(
             "push rbx",
             "mov eax, 1",
             "cpuid",
-            "pop rbx",
-            out("edx") edx_1,
-            out("eax") _,
-            out("ecx") _,
-            options(nomem, preserves_flags)
-        );
-    }
-
-    let (efer_low, _): (u32, u32);
-    unsafe {
-        asm!(
-            "rdmsr",
-            in("ecx") 0xC0000080u32,
-            out("eax") efer_low,
-            out("edx") _,
-            options(nomem, nostack, preserves_flags)
-        );
-    }
-    let efer_lma = (efer_low & (1 << 10)) != 0;
-
-    let mut ext_lm = false;
-    let max_ext: u32;
-    unsafe {
-        asm!(
-            "push rbx",
-            "mov eax, 0x80000000",
+            "mov {0:e}, edx",
+            "mov eax, 0x80000001",
             "cpuid",
+            "mov {1:e}, edx",
             "pop rbx",
-            out("eax") max_ext,
-            out("ecx") _,
-            out("edx") _,
+            out(reg) edx1,
+            out(reg) edx_ext,
             options(nomem, preserves_flags)
         );
-    }
-    if max_ext >= 0x80000001 {
-        let edx_ext: u32;
-        unsafe {
-            asm!(
-                "push rbx",
-                "mov eax, 0x80000001",
-                "cpuid",
-                "pop rbx",
-                out("edx") edx_ext,
-                out("eax") _,
-                out("ecx") _,
-                options(nomem, preserves_flags)
-            );
-        }
-        ext_lm = (edx_ext & (1 << 29)) != 0;
-    }
+        (edx1, edx_ext)
+    };
 
     let cpu_sse2 = (edx_1 & (1 << 26)) != 0;
     let cpu_apic = (edx_1 & (1 << 9)) != 0;
-    let cpu_long_mode = efer_lma || ext_lm;
+    let cpu_long_mode = (edx_ext & (1 << 29)) != 0;
 
     // 2. Control Registers
     let cr0: u64;

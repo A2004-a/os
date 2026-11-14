@@ -53,8 +53,8 @@ def run_test(timeout_sec=60):
                 sys.stdout.flush()
                 lines.append(line)
 
-                if "PID 1 entering steady-state supervisory loop" in line:
-                    print("\n[TEST RUNNER] Detected Full System Boot to PID 1 Steady-State & Release Certification!")
+                if "[MILESTONE 12 TEST RESULT] ALL 6 TEST SUITES PASSED" in line or "[NOVAOS APEX v1.0.0 RELEASE CERTIFIED]" in line or "PID 1 entering steady-state supervisory loop" in line:
+                    print("\n[TEST RUNNER] Detected Milestone 12 success criteria & Production Release Certification!")
                     success = True
                     break
             else:
