@@ -58,6 +58,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // Run Milestone M9 Package Manager, App Model & Native Applications verification suite
     novaos_kernel::process::pkg_test::run_pkg_diagnostics();
 
+    // Run Milestone M10 GPT Partitioning, NovaFS Installer & Recovery verification suite
+    novaos_kernel::storage::installer_test::run_installer_diagnostics();
+
     println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");
 

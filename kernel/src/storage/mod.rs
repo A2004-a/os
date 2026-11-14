@@ -1,8 +1,13 @@
 //! NovaOS Zero — Storage Subsystem
 //! Block device abstraction and VirtIO / RAM disk implementations
 
+pub mod gpt;
+pub mod installer_test;
+pub mod partitioner;
 pub mod ramdisk;
 
+pub use gpt::{GptHeader, GptPartitionEntry, ProtectiveMbr};
+pub use partitioner::DiskPartitioner;
 pub use ramdisk::RamBlockDevice;
 
 pub trait BlockDevice {
