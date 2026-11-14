@@ -156,11 +156,20 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 7 WARN] Graphics verification encountered anomalies.\n");
     }
 
-    // 12. Initialize Scheduler & IPC Subsystems
+    // 12. Run Milestone 8 Desktop Shell Verification Suite
+    serial::write_str("\n[KERNEL] Initializing Milestone 8 Nova Desktop Shell...\n");
+    let m8_shell_passed = graphics::shell_tests::run_m8_verification_suite();
+    if m8_shell_passed {
+        serial::write_str("\n[MILESTONE 8 VERIFIED] Nova Bar, Nova Launcher, Snap Assist, and Virtual Workspaces confirmed!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 8 WARN] Desktop shell verification encountered anomalies.\n");
+    }
+
+    // 13. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 
-    // 13. Run Milestone 4 Verification Test Suite & Spawn PID 1
+    // 14. Run Milestone 4 Verification Test Suite & Spawn PID 1
     static INIT_ELF: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/novaos-apex-init");
     syscall::tests::run_m4_verification_suite(INIT_ELF);
 

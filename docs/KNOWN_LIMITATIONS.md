@@ -6,7 +6,7 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ---
 
-## Current Status: Milestone 7 (Graphics, Window Server & NovaUI)
+## Current Status: Milestone 8 (Nova Desktop Shell)
 
 ### 1. CPU, Scheduling & Synchronization
 - **Multicore (SMP):** Single-core execution only (Bootstrap Processor / BSP). Multi-core scheduling across APs is scheduled for Milestone 11.
@@ -20,7 +20,7 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 
 ### 3. System Calls & IPC
 - **Native System Call Engine:** IDT Vector 128 (0x80, DPL=3) operational with strict user pointer and buffer boundary validation enforcing limits below `0x0000_8000_0000_0000`.
-- **34 Supported System Calls:** `exit`, `read`, `write`, `open`, `close`, `spawn`, `wait`, `yield`, `sleep`, `get_time`, `map_memory`, `unmap_memory`, `send_ipc`, `receive_ipc`, `stat`, `readdir`, `mkdir`, `unlink`, `chdir`, `getcwd`, `seek`, `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `create_window`, `destroy_window`, `blit_window`, `poll_event`, `get_display_info`, `set_cursor`.
+- **40 Supported System Calls:** `exit`, `read`, `write`, `open`, `close`, `spawn`, `wait`, `yield`, `sleep`, `get_time`, `map_memory`, `unmap_memory`, `send_ipc`, `receive_ipc`, `stat`, `readdir`, `mkdir`, `unlink`, `chdir`, `getcwd`, `seek`, `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `create_window`, `destroy_window`, `blit_window`, `poll_event`, `get_display_info`, `set_cursor`, `snap_window`, `restore_window`, `minimize_window`, `switch_workspace`, `get_workspace`, `toggle_launcher`.
 - **Inter-Process Communication:** Mailbox queues with 256-byte payload limits, message sequencing, and caller isolation.
 
 ### 4. Storage & Filesystem Architecture
@@ -46,8 +46,15 @@ This document records genuine, verified technical boundaries of NovaOS Apex at e
 ### 6. Graphics, Window Server & NovaUI Subsystem
 - **2D Software Compositor:** True double-buffered backbuffer engine rendering at 1280x800 with direct blits to UEFI GOP framebuffer hardware.
 - **Alpha Blending:** 32-bit ARGB channel manipulation with Porter-Duff Source-Over alpha blending and per-window global opacity modulation.
-- **Window Hierarchy & Management:** Ascending Z-order list, active window focus tracking, bring-to-front reordering, hit testing, and window decoration frames (title bar, text, close button, borders).
+- **Window Hierarchy & Management:** Ascending Z-order list, active window focus tracking, bring-to-front reordering, hit testing, and window decoration frames (title bar, text, close, maximize, minimize buttons, borders).
 - **Damage Tracking:** Dirty rectangle accumulation (`DamageRegion`) to limit repaint and blit passes strictly to modified screen regions.
 - **Mouse Cursor Overlay:** Hardware-calibrated 16x16 arrow sprite with non-destructive backdrop save and restore.
 - **NovaUI Toolkit (`userland/toolkit`):** Clean `#![no_std]` graphical toolkit featuring `Point`, `Size`, `Rect`, modern Dark/Mica theme palette, `Widget` trait, and core widgets (`Button`, `Label`, `Panel`, `ProgressBar`, `CheckBox`, `TextBox`).
-- **Desktop Shell Integration:** Comprehensive shell desktop features (Nova Bar taskbar, Nova Launcher, Snap Assist engine, Virtual Workspaces 1..4) are scheduled for **Milestone 8**.
+
+### 7. Nova Desktop Shell (Milestone 8)
+- **Nova Bar Taskbar (`kernel/src/graphics/bar.rs`):** Fixed 48px height bottom dock with Start menu toggle `[N]`, Virtual Workspaces selector `[1] [2] [3] [4]`, running application pills with active state indicator and focus switching, system tray status pills (`[AC]`, `[ETH]`), and formatted `HH:MM:SS` uptime clock.
+- **Nova Launcher Start Menu (`kernel/src/graphics/launcher.rs`):** 520x440 glass card popup with real-time search query filtering, category tabs (All, System, Utilities), 6 pinned application cards (Files, Monitor, Settings, Terminal, Editor, Browser), user avatar indicator (`apex (Admin)`), and power actions (`[Lock]`, `[Restart]`, `[Shutdown]`).
+- **Snap Assist Engine (`kernel/src/graphics/snap.rs`):** Modern window tiling supporting 7 docking zones (Left Half, Right Half, Top-Left, Top-Right, Bottom-Left, Bottom-Right, Maximize), 16px edge and 64px corner threshold triggers, semi-transparent ghost preview rendering, and seamless bounds restoration when unsnapped.
+- **Virtual Workspaces 1..4 (`kernel/src/graphics/workspace.rs`):** 4 isolated workspaces with instant switching, sticky windows (`workspace == 0`), and damage-managed visibility filtering.
+- **Desktop Shell Manager (`kernel/src/graphics/desktop.rs`):** Unified coordinator handling title bar dragging, snap detection, window state transitions, and layered composition.
+- **Next Milestone Target:** Native graphical applications (Nova Files, Nova System Monitor, Nova Settings, Nova Editor) are scheduled for **Milestone 9**.

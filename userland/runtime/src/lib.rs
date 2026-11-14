@@ -39,11 +39,37 @@ pub const SYS_BLIT_WINDOW: usize = 31;
 pub const SYS_POLL_EVENT: usize = 32;
 pub const SYS_GET_DISPLAY_INFO: usize = 33;
 pub const SYS_SET_CURSOR: usize = 34;
+pub const SYS_SNAP_WINDOW: usize = 35;
+pub const SYS_RESTORE_WINDOW: usize = 36;
+pub const SYS_MINIMIZE_WINDOW: usize = 37;
+pub const SYS_SWITCH_WORKSPACE: usize = 38;
+pub const SYS_GET_WORKSPACE: usize = 39;
+pub const SYS_TOGGLE_LAUNCHER: usize = 40;
+
+pub const SNAP_NONE: u32 = 0;
+pub const SNAP_LEFT_HALF: u32 = 1;
+pub const SNAP_RIGHT_HALF: u32 = 2;
+pub const SNAP_TOP_LEFT: u32 = 3;
+pub const SNAP_TOP_RIGHT: u32 = 4;
+pub const SNAP_BOTTOM_LEFT: u32 = 5;
+pub const SNAP_BOTTOM_RIGHT: u32 = 6;
+pub const SNAP_MAXIMIZE: u32 = 7;
 
 pub const WINDOW_FLAG_FRAMELESS: u32 = 1 << 0;
 pub const WINDOW_FLAG_TRANSPARENT: u32 = 1 << 1;
 pub const WINDOW_FLAG_MODAL: u32 = 1 << 2;
 pub const WINDOW_FLAG_RESIZABLE: u32 = 1 << 3;
+
+pub const EVENT_MOUSE_MOVE: u32 = 1;
+pub const EVENT_MOUSE_DOWN: u32 = 2;
+pub const EVENT_MOUSE_UP: u32 = 3;
+pub const EVENT_KEY_DOWN: u32 = 4;
+pub const EVENT_KEY_UP: u32 = 5;
+pub const EVENT_CHAR: u32 = 6;
+pub const EVENT_FOCUS: u32 = 7;
+pub const EVENT_BLUR: u32 = 8;
+pub const EVENT_CLOSE: u32 = 9;
+pub const EVENT_RESIZE: u32 = 10;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -695,6 +721,62 @@ pub fn get_display_info() -> Result<DisplayInfo, i32> {
 // 35. set_cursor
 pub fn set_cursor(x: i32, y: i32) -> Result<(), i32> {
     let ret = unsafe { syscall2(SYS_SET_CURSOR, x as u64, y as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 36. snap_window
+pub fn snap_window(window_id: u32, snap_pos: u32) -> Result<(), i32> {
+    let ret = unsafe { syscall2(SYS_SNAP_WINDOW, window_id as u64, snap_pos as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 37. restore_window
+pub fn restore_window(window_id: u32) -> Result<(), i32> {
+    let ret = unsafe { syscall1(SYS_RESTORE_WINDOW, window_id as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 38. minimize_window
+pub fn minimize_window(window_id: u32) -> Result<(), i32> {
+    let ret = unsafe { syscall1(SYS_MINIMIZE_WINDOW, window_id as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 39. switch_workspace
+pub fn switch_workspace(ws_id: u8) -> Result<(), i32> {
+    let ret = unsafe { syscall1(SYS_SWITCH_WORKSPACE, ws_id as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 40. get_workspace
+pub fn get_workspace() -> u8 {
+    let ret = unsafe { syscall0(SYS_GET_WORKSPACE) };
+    ret as u8
+}
+
+// 41. toggle_launcher
+pub fn toggle_launcher() -> Result<(), i32> {
+    let ret = unsafe { syscall0(SYS_TOGGLE_LAUNCHER) };
     if ret >= 0 {
         Ok(())
     } else {

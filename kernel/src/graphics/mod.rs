@@ -1,25 +1,36 @@
 //! NovaOS Apex — Graphics & Window Server Subsystem (Milestone 7)
 //! 2D Software Compositor, Window Hierarchy, Alpha Blending, and NovaUI Engine.
 
+pub mod bar;
 pub mod color;
 pub mod compositor;
 pub mod cursor;
 pub mod damage;
+pub mod desktop;
 pub mod events;
 pub mod font;
 pub mod geometry;
+pub mod launcher;
+pub mod shell_tests;
+pub mod snap;
 pub mod surface;
 pub mod tests;
 pub mod window;
+pub mod workspace;
 
+pub use bar::NovaBar;
 pub use color::Color;
 pub use compositor::Compositor;
 pub use cursor::{Cursor, CursorType};
 pub use damage::DamageRegion;
+pub use desktop::{DesktopShell, DESKTOP};
 pub use events::{UserEvent, WindowEvent};
 pub use geometry::{Point, Rect, Size};
+pub use launcher::NovaLauncher;
+pub use snap::{SnapEngine, SnapPosition};
 pub use surface::Surface;
-pub use window::{Window, WindowId};
+pub use window::{Window, WindowId, WindowState};
+pub use workspace::WorkspaceManager;
 
 use crate::drivers::framebuffer::get_driver;
 use crate::scheduler::sync::SpinLock;
@@ -33,12 +44,12 @@ pub fn init() {
     let height = if fb.height > 0 { fb.height } else { 800 };
 
     let mut comp = Compositor::new(width, height);
-    // Initial composition to display wallpaper
     comp.composite();
-
     *COMPOSITOR.lock() = Some(comp);
 
-    serial::write_str("[GRAPHICS] NovaOS Apex 2D Software Compositor initialized (");
+    desktop::init();
+
+    serial::write_str("[GRAPHICS] NovaOS Apex 2D Software Compositor & Desktop Shell initialized (");
     print_u64(width as u64);
     serial::write_str("x");
     print_u64(height as u64);

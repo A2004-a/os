@@ -34,6 +34,7 @@ pub struct Window {
     pub id: WindowId,
     pub title: String,
     pub rect: Rect,
+    pub restored_rect: Rect,
     pub surface: Surface,
     pub z_order: usize,
     pub active: bool,
@@ -41,6 +42,7 @@ pub struct Window {
     pub opacity: u8,
     pub flags: u32,
     pub state: WindowState,
+    pub workspace: u8,
     pub owner_pid: u32,
     pub event_queue: VecDeque<WindowEvent>,
 }
@@ -59,11 +61,13 @@ impl Window {
         let is_frameless = (flags & WINDOW_FLAG_FRAMELESS) != 0;
         let outer_width = if is_frameless { client_width } else { client_width + WINDOW_BORDER_WIDTH * 2 };
         let outer_height = if is_frameless { client_height } else { client_height + TITLE_BAR_HEIGHT + WINDOW_BORDER_WIDTH * 2 };
+        let rect = Rect::new(x, y, outer_width, outer_height);
 
         Self {
             id,
             title: String::from(title),
-            rect: Rect::new(x, y, outer_width, outer_height),
+            rect,
+            restored_rect: rect,
             surface: Surface::new(client_width, client_height),
             z_order: 0,
             active: false,
@@ -71,6 +75,7 @@ impl Window {
             opacity: 255,
             flags,
             state: WindowState::Normal,
+            workspace: 1,
             owner_pid,
             event_queue: VecDeque::new(),
         }
@@ -108,6 +113,32 @@ impl Window {
         } else {
             Some(Rect::new(
                 self.rect.right() - BUTTON_WIDTH as i32 - 4,
+                self.rect.y + 4,
+                BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+            ))
+        }
+    }
+
+    pub fn maximize_button_rect(&self) -> Option<Rect> {
+        if self.is_frameless() {
+            None
+        } else {
+            Some(Rect::new(
+                self.rect.right() - (BUTTON_WIDTH as i32 * 2) - 8,
+                self.rect.y + 4,
+                BUTTON_WIDTH,
+                BUTTON_HEIGHT,
+            ))
+        }
+    }
+
+    pub fn minimize_button_rect(&self) -> Option<Rect> {
+        if self.is_frameless() {
+            None
+        } else {
+            Some(Rect::new(
+                self.rect.right() - (BUTTON_WIDTH as i32 * 3) - 12,
                 self.rect.y + 4,
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT,
@@ -157,7 +188,16 @@ impl Window {
             let text_color = if self.active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY };
             draw_text(target, &self.title, self.rect.x + 12, self.rect.y + 8, text_color);
 
-            // 5. Close Button (Red hover/accent or subtle box)
+            // 5. Window Frame Control Buttons (Minimize, Maximize, Close)
+            if let Some(mbtn) = self.minimize_button_rect() {
+                target.fill_rect(mbtn, Color::from_hex(0x21262D));
+                draw_text(target, "-", mbtn.x + 10, mbtn.y + 4, Color::TEXT_SECONDARY);
+            }
+            if let Some(xbtn) = self.maximize_button_rect() {
+                target.fill_rect(xbtn, Color::from_hex(0x21262D));
+                let sym = if self.state == WindowState::Maximized { "=" } else { "+" };
+                draw_text(target, sym, xbtn.x + 10, xbtn.y + 4, Color::TEXT_SECONDARY);
+            }
             if let Some(cbtn) = self.close_button_rect() {
                 target.fill_rect(cbtn, Color::from_hex(0x282E38));
                 draw_text(target, "X", cbtn.x + 10, cbtn.y + 4, Color::TEXT_PRIMARY);

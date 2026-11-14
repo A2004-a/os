@@ -49,6 +49,12 @@ pub const SYS_BLIT_WINDOW: usize = 31;
 pub const SYS_POLL_EVENT: usize = 32;
 pub const SYS_GET_DISPLAY_INFO: usize = 33;
 pub const SYS_SET_CURSOR: usize = 34;
+pub const SYS_SNAP_WINDOW: usize = 35;
+pub const SYS_RESTORE_WINDOW: usize = 36;
+pub const SYS_MINIMIZE_WINDOW: usize = 37;
+pub const SYS_SWITCH_WORKSPACE: usize = 38;
+pub const SYS_GET_WORKSPACE: usize = 39;
+pub const SYS_TOGGLE_LAUNCHER: usize = 40;
 
 #[no_mangle]
 pub fn handle_syscall(ctx: &mut ExceptionContext) {
@@ -808,6 +814,84 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
             if let Some(comp) = comp_guard.as_mut() {
                 comp.on_mouse_move(x, y);
                 comp.composite();
+                0
+            } else {
+                -5
+            }
+        }
+
+        SYS_SNAP_WINDOW => {
+            let win_id = crate::graphics::window::WindowId(arg1 as u32);
+            let snap_pos = match arg2 as u32 {
+                1 => crate::graphics::snap::SnapPosition::LeftHalf,
+                2 => crate::graphics::snap::SnapPosition::RightHalf,
+                3 => crate::graphics::snap::SnapPosition::TopLeft,
+                4 => crate::graphics::snap::SnapPosition::TopRight,
+                5 => crate::graphics::snap::SnapPosition::BottomLeft,
+                6 => crate::graphics::snap::SnapPosition::BottomRight,
+                7 => crate::graphics::snap::SnapPosition::Maximize,
+                _ => crate::graphics::snap::SnapPosition::None,
+            };
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.snap_window(win_id, snap_pos);
+                shell.composite();
+                0
+            } else {
+                -5
+            }
+        }
+
+        SYS_RESTORE_WINDOW => {
+            let win_id = crate::graphics::window::WindowId(arg1 as u32);
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.restore_window(win_id);
+                shell.composite();
+                0
+            } else {
+                -5
+            }
+        }
+
+        SYS_MINIMIZE_WINDOW => {
+            let win_id = crate::graphics::window::WindowId(arg1 as u32);
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.minimize_window(win_id);
+                shell.composite();
+                0
+            } else {
+                -5
+            }
+        }
+
+        SYS_SWITCH_WORKSPACE => {
+            let ws_id = arg1 as u8;
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.switch_workspace(ws_id);
+                shell.composite();
+                0
+            } else {
+                -5
+            }
+        }
+
+        SYS_GET_WORKSPACE => {
+            let shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_ref() {
+                shell.workspaces.active_workspace as i64
+            } else {
+                1
+            }
+        }
+
+        SYS_TOGGLE_LAUNCHER => {
+            let mut shell_guard = crate::graphics::desktop::DESKTOP.lock();
+            if let Some(shell) = shell_guard.as_mut() {
+                shell.toggle_launcher();
+                shell.composite();
                 0
             } else {
                 -5

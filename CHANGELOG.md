@@ -2,6 +2,47 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.8.0] - 2026-11-14 — Milestone 8 (Nova Desktop Shell)
+
+### Added
+- **Nova Bar Taskbar (`kernel/src/graphics/bar.rs`):**
+  - Fixed 48px height bottom dock with Windows 11-class Dark/Mica glass styling.
+  - Interactive Start button `[N]` with dynamic toggle state.
+  - Virtual Workspaces 1..4 switch buttons `[1] [2] [3] [4]` with active workspace highlight.
+  - Running application pills in center dock with title truncation, active state accent indicator dot and underline, and click-to-focus/minimize.
+  - System Tray status island with battery/AC status pill `[AC]`, network connectivity indicator `[ETH]`, and formatted `HH:MM:SS` uptime clock.
+  - Direct hit testing (`bar.handle_click`) returning `BarAction::ToggleLauncher`, `BarAction::SwitchWorkspace`, or `BarAction::FocusWindow`.
+- **Nova Launcher Start Menu (`kernel/src/graphics/launcher.rs`):**
+  - 520x440 centered glass card popup floating smoothly above the taskbar.
+  - Real-time search query box with keyboard input support, character typing, and backspace.
+  - Category tabs (`All`, `System`, `Utilities`) for interactive application catalog filtering.
+  - 2x3 pinned application card grid (Files, Monitor, Settings, Terminal, Editor, Browser) with icon badge, title, subtitle, and launch callbacks.
+  - User profile avatar indicator (`apex (Admin)`) in menu footer.
+  - Power action buttons: `[Lock]`, `[Restart]`, and `[Shutdown]`.
+- **Snap Assist Tiling Engine (`kernel/src/graphics/snap.rs`):**
+  - Window snapping system supporting 7 docking zones: `LeftHalf`, `RightHalf`, `TopLeft`, `TopRight`, `BottomLeft`, `BottomRight`, and `Maximize`.
+  - Edge and corner threshold detection: 16px edge proximity and 64px corner threshold.
+  - Semi-transparent ghost preview outline and fill overlay rendered over backbuffer during window drag.
+  - Restored bounds persistence (`win.restored_rect`) allowing seamless un-snapping and restoration to prior floating geometry.
+- **Virtual Workspaces 1..4 (`kernel/src/graphics/workspace.rs`):**
+  - 4 isolated virtual workspaces (`1` through `4`) with sticky windows (`workspace == 0`).
+  - Window workspace assignment and dynamic visibility filtering (`is_window_visible`).
+  - Damage-tracked workspace switching updating window visibility and marking modified screen regions.
+- **Desktop Shell Manager (`kernel/src/graphics/desktop.rs`):**
+  - Unified shell coordinator integrating Compositor, Nova Bar, Nova Launcher, Snap Assist, and Workspaces.
+  - Window dragging with title bar grab detection, real-time snap zone triggering, and automatic snap on drop.
+  - Maximize, minimize, and restore window state transitions.
+  - Integrated 8-stage double-buffered composition pass flushing to hardware GOP framebuffer.
+- **Shell Management System Calls (35..40) (`kernel/src/syscall/mod.rs` & `userland/runtime/`):**
+  - `SYS_SNAP_WINDOW (35)`: snap window to target tile zone.
+  - `SYS_RESTORE_WINDOW (36)`: restore window from snapped/maximized state to floating bounds.
+  - `SYS_MINIMIZE_WINDOW (37)`: minimize window to taskbar.
+  - `SYS_SWITCH_WORKSPACE (38)`: switch active virtual workspace (1..4).
+  - `SYS_GET_WORKSPACE (39)`: query active virtual workspace ID.
+  - `SYS_TOGGLE_LAUNCHER (40)`: toggle Nova Launcher start menu popup.
+- **Milestone 8 Verification Suite (`kernel/src/graphics/shell_tests.rs`):**
+  - 6 rigorous automated test suites validating Nova Bar geometry/tray, Nova Launcher grid/search, Snap Assist math, edge/corner drag detection, Virtual Workspaces isolation, and integrated desktop shell composition.
+
 ## [0.7.0] - 2026-11-14 — Milestone 7 (Graphics, Window Server, and NovaUI)
 
 ### Added
