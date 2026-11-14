@@ -49,6 +49,9 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     // Run Milestone M6 VirtIO-Net, Network Protocols, and Multi-User verification suite
     novaos_kernel::net::net_test::run_network_diagnostics();
 
+    // Run Milestone M7 2D Compositor, Window Server, and NovaUI verification suite
+    novaos_kernel::graphics::graphics_test::run_graphics_diagnostics();
+
     println!("NovaOS Bare-Metal Kernel v0.2.0 [x86_64-uefi]");
     println!("Copyright (c) 2026 NovaOS Systems Engineering\n");
 
