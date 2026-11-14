@@ -16,6 +16,10 @@
   <em>Equaling the practical strengths, polish, and usability of a modern Windows 11-class PC platform—while using an original NovaOS identity, modular monolithic kernel, and zero host OS dependencies.</em>
 </p>
 
+<p align="center">
+  <img src="docs/assets/novaos_desktop.png" alt="NovaOS Apex Live Desktop Screenshot" width="800" style="border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
+</p>
+
 ---
 
 ## 🌟 Highlights & Philosophy

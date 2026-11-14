@@ -44,35 +44,7 @@ impl Compositor {
     }
 
     pub fn render_wallpaper_rect(&mut self, r: Rect) {
-        // 1. Midnight base fill
-        self.backbuffer.fill_rect(r, Color::NOVA_MIDNIGHT);
-
-        // 2. Subtle horizontal mesh lines
-        let step = 40;
-        let y_start = (r.y / step) * step;
-        for y in (y_start..=r.bottom()).step_by(step as usize) {
-            if y >= 0 && (y as u32) < self.height {
-                self.backbuffer.draw_line(r.x, y, r.right(), y, Color::from_hex(0x111722));
-            }
-        }
-        // 3. Subtle vertical mesh lines
-        let x_start = (r.x / step) * step;
-        for x in (x_start..=r.right()).step_by(step as usize) {
-            if x >= 0 && (x as u32) < self.width {
-                self.backbuffer.draw_line(x, r.y, x, r.bottom(), Color::from_hex(0x111722));
-            }
-        }
-
-        // 4. Center NovaOS Apex Emblem & Brand Banner
-        let cx = self.width as i32 / 2;
-        let cy = self.height as i32 / 2;
-        let badge_rect = Rect::new(cx - 120, cy - 50, 240, 100);
-        if r.intersects(&badge_rect) {
-            self.backbuffer.fill_rect(badge_rect, Color::NOVA_SURFACE);
-            self.backbuffer.draw_rect_outline(badge_rect, Color::NOVA_ACCENT, 2);
-            draw_text(&mut self.backbuffer, "NovaOS Apex", cx - 44, cy - 20, Color::NOVA_ACCENT);
-            draw_text(&mut self.backbuffer, "Milestone 7: NovaUI & Window Server", cx - 110, cy + 8, Color::TEXT_SECONDARY);
-        }
+        draw_bloom_wallpaper_to(&mut self.backbuffer, Some(r));
     }
 
     pub fn create_window(
@@ -318,27 +290,115 @@ impl Compositor {
 
 /// Initialize modern Windows 11-inspired NovaOS Apex Desktop wallpaper
 fn init_wallpaper_surface(surface: &mut Surface) {
-    // 1. Deep midnight gradient base
-    surface.clear(Color::NOVA_MIDNIGHT);
+    draw_bloom_wallpaper_to(surface, None);
+}
 
-    // 2. Subtle horizontal mesh lines
-    for y in (0..surface.height).step_by(40) {
-        surface.draw_line(0, y as i32, surface.width as i32, y as i32, Color::from_hex(0x111722));
+/// Renders the Windows 11-class "Nova Bloom" gradient wallpaper, ribbon waves, and desktop icons
+fn draw_bloom_wallpaper_to(surface: &mut Surface, clip: Option<Rect>) {
+    let w = surface.width as i32;
+    let h = surface.height as i32;
+
+    let y_start = clip.map(|c| c.y.max(0)).unwrap_or(0);
+    let y_end = clip.map(|c| (c.bottom() + 1).min(h)).unwrap_or(h);
+    let x_start = clip.map(|c| c.x.max(0)).unwrap_or(0);
+    let x_end = clip.map(|c| (c.right() + 1).min(w)).unwrap_or(w);
+
+    // 1. Vertical Gradient: Deep Obsidian (0x0A0D15) -> Royal Sapphire (0x121E36) -> Deep Navy (0x0E1729)
+    for y in (y_start..y_end).step_by(4) {
+        let t = (y as u32 * 255) / (h as u32).max(1);
+        let (r, g, b) = if t < 128 {
+            let factor = t * 2;
+            (
+                (10 + (8 * factor) / 255) as u8,
+                (13 + (17 * factor) / 255) as u8,
+                (21 + (33 * factor) / 255) as u8,
+            )
+        } else {
+            let factor = (t - 128) * 2;
+            (
+                (18 - (4 * factor) / 255) as u8,
+                (30 - (7 * factor) / 255) as u8,
+                (54 - (13 * factor) / 255) as u8,
+            )
+        };
+        let band_color = Color::from_rgb(r, g, b);
+        let band_h = 4.min(y_end - y) as u32;
+        surface.fill_rect(Rect::new(x_start, y, (x_end - x_start) as u32, band_h), band_color);
     }
-    // 3. Subtle vertical mesh lines
-    for x in (0..surface.width).step_by(40) {
-        surface.draw_line(x as i32, 0, x as i32, surface.height as i32, Color::from_hex(0x111722));
+
+    // 2. Windows 11 "Nova Bloom" Abstract Ribbon Wave (Center-Right)
+    let cx = w / 2 + 100;
+    let cy = h / 2 - 30;
+
+    // Outer Ribbon (Deep Royal Blue)
+    for i in 0..16 {
+        let r_h = (200 - i * 6).max(1) as u32;
+        let r_rect = Rect::new(cx - 160 + i * 14, cy - 90 + (i * i) / 8, 140, r_h);
+        if clip.map_or(true, |c| c.intersects(&r_rect)) {
+            let alpha = (45 - i * 2) as u8;
+            surface.fill_rect(r_rect, Color::from_argb(alpha, 0x1E, 0x4B, 0x8A));
+        }
     }
 
-    // 4. Center NovaOS Apex Emblem & Brand Banner
-    let cx = surface.width as i32 / 2;
-    let cy = surface.height as i32 / 2;
+    // Main Luminous Bloom Petal (Electric Cyan / Azure)
+    for i in 0..12 {
+        let p_h = (160 - i * 8).max(1) as u32;
+        let p_rect = Rect::new(cx - 100 + i * 16, cy - 60 + i * 5, 90, p_h);
+        if clip.map_or(true, |c| c.intersects(&p_rect)) {
+            let alpha = (60 - i * 3) as u8;
+            surface.fill_rect(p_rect, Color::from_argb(alpha, 0x38, 0x8B, 0xFD));
+        }
+    }
 
-    // Glowing cyan geometric badge
-    let badge_rect = Rect::new(cx - 120, cy - 50, 240, 100);
-    surface.fill_rect(badge_rect, Color::NOVA_SURFACE);
-    surface.draw_rect_outline(badge_rect, Color::NOVA_ACCENT, 2);
+    // Core Highlight Petal (Bright Azure 0x4CC2FF)
+    for i in 0..8 {
+        let h_h = (110 - i * 8).max(1) as u32;
+        let h_rect = Rect::new(cx - 50 + i * 12, cy - 30 + i * 4, 60, h_h);
+        if clip.map_or(true, |c| c.intersects(&h_rect)) {
+            let alpha = (70 - i * 5) as u8;
+            surface.fill_rect(h_rect, Color::from_argb(alpha, 0x78, 0xD5, 0xFF));
+        }
+    }
 
-    draw_text(surface, "NovaOS Apex", cx - 44, cy - 20, Color::NOVA_ACCENT);
-    draw_text(surface, "Milestone 7: NovaUI & Window Server", cx - 110, cy + 8, Color::TEXT_SECONDARY);
+    // 3. Desktop Shortcut Icons (Left column)
+    struct DesktopIcon {
+        name: &'static str,
+        sym: &'static str,
+        bg: Color,
+        x: i32,
+        y: i32,
+    }
+    let icons: [DesktopIcon; 6] = [
+        DesktopIcon { name: "Nova Files", sym: "F", bg: Color::from_hex(0x0078D4), x: 24, y: 24 },
+        DesktopIcon { name: "Sys Monitor", sym: "M", bg: Color::from_hex(0x107C41), x: 24, y: 96 },
+        DesktopIcon { name: "Settings", sym: "S", bg: Color::from_hex(0x737373), x: 24, y: 168 },
+        DesktopIcon { name: "Pkg Store", sym: "P", bg: Color::from_hex(0x8764B8), x: 24, y: 240 },
+        DesktopIcon { name: "Terminal", sym: ">", bg: Color::from_hex(0x24292E), x: 24, y: 312 },
+        DesktopIcon { name: "Device Mgr", sym: "D", bg: Color::from_hex(0xD83B01), x: 24, y: 384 },
+    ];
+
+    for icon in &icons {
+        let icon_tile = Rect::new(icon.x, icon.y, 44, 40);
+        let icon_total = Rect::new(icon.x - 10, icon.y, 80, 64);
+        if clip.map_or(true, |c| c.intersects(&icon_total)) {
+            // Icon Card Background
+            surface.fill_rect(icon_tile, Color::from_argb(60, 0x1E, 0x24, 0x30));
+            surface.draw_rect_outline(icon_tile, Color::from_argb(80, 0x48, 0x54, 0x68), 1);
+
+            // Icon Badge
+            let badge_rect = Rect::new(icon.x + 10, icon.y + 6, 24, 20);
+            surface.fill_rect(badge_rect, icon.bg);
+            draw_text(surface, icon.sym, badge_rect.x + 8, badge_rect.y + 2, Color::TEXT_PRIMARY);
+
+            // Text Label with dark drop shadow for readability
+            draw_text(surface, icon.name, icon.x - 6, icon.y + 45, Color::from_hex(0x000000));
+            draw_text(surface, icon.name, icon.x - 7, icon.y + 44, Color::TEXT_PRIMARY);
+        }
+    }
+
+    // 4. Discreet Windows 11-style Desktop Watermark (Bottom-Right)
+    let wm_rect = Rect::new(w - 280, h - 80, 270, 24);
+    if clip.map_or(true, |c| c.intersects(&wm_rect)) {
+        draw_text(surface, "NovaOS Apex v1.0.0 (x86_64)", w - 260, h - 76, Color::from_hex(0x485468));
+    }
 }

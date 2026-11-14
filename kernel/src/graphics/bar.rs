@@ -65,22 +65,40 @@ impl NovaBar {
         target.fill_rect(bar_rect, Color::NOVA_SURFACE);
         target.draw_line(0, bar_rect.y, screen_w as i32, bar_rect.y, Color::NOVA_BORDER);
 
-        // 2. Start / Nova Launcher Button
+        // 2. Start / Nova Launcher Button (Windows 11-style 4-tile logo)
         let sbtn = self.start_button_rect(screen_h);
-        let sbtn_bg = if self.is_launcher_open { Color::NOVA_ACCENT_PRESSED } else { Color::NOVA_CARD };
+        let sbtn_bg = if self.is_launcher_open { Color::from_hex(0x2D333B) } else { Color::from_hex(0x21262D) };
         target.fill_rect(sbtn, sbtn_bg);
-        target.draw_rect_outline(sbtn, Color::NOVA_ACCENT, 1);
-        draw_text(target, "N", sbtn.x + 14, sbtn.y + 10, Color::NOVA_ACCENT);
+        target.draw_rect_outline(sbtn, Color::from_hex(0x30363D), 1);
+
+        // 4-tile Windows 11 / Nova geometric logo
+        let tile_size = 7;
+        let gap = 3;
+        let t_x = sbtn.x + 9;
+        let t_y = sbtn.y + 9;
+        let logo_color = if self.is_launcher_open { Color::NOVA_ACCENT } else { Color::from_hex(0x388BFD) };
+        target.fill_rect(Rect::new(t_x, t_y, tile_size, tile_size), logo_color);
+        target.fill_rect(Rect::new(t_x + tile_size as i32 + gap, t_y, tile_size, tile_size), logo_color);
+        target.fill_rect(Rect::new(t_x, t_y + tile_size as i32 + gap, tile_size, tile_size), logo_color);
+        target.fill_rect(Rect::new(t_x + tile_size as i32 + gap, t_y + tile_size as i32 + gap, tile_size, tile_size), logo_color);
+
+        // 2b. Windows 11 Quick Search Pill
+        let search_pill = Rect::new(sbtn.right() + 8, bar_rect.y + 8, 88, 32);
+        target.fill_rect(search_pill, Color::from_hex(0x21262D));
+        target.draw_rect_outline(search_pill, Color::from_hex(0x30363D), 1);
+        draw_text(target, "Search", search_pill.x + 18, search_pill.y + 8, Color::TEXT_SECONDARY);
 
         // 3. Workspace Switcher Buttons (1..4)
         for ws in 1..=4 {
             let ws_rect = self.workspace_button_rect(screen_h, ws);
+            // shift right past search pill
+            let shifted_ws_rect = Rect::new(ws_rect.x + 96, ws_rect.y, ws_rect.width, ws_rect.height);
             let is_active = ws == active_ws;
             let bg = if is_active { Color::from_hex(0x283244) } else { Color::NOVA_SURFACE };
-            target.fill_rect(ws_rect, bg);
+            target.fill_rect(shifted_ws_rect, bg);
 
             if is_active {
-                target.draw_line(ws_rect.x + 4, ws_rect.bottom() - 2, ws_rect.right() - 4, ws_rect.bottom() - 2, Color::NOVA_ACCENT);
+                target.draw_line(shifted_ws_rect.x + 4, shifted_ws_rect.bottom() - 2, shifted_ws_rect.right() - 4, shifted_ws_rect.bottom() - 2, Color::NOVA_ACCENT);
             }
 
             let ch = (b'0' + ws) as char;
@@ -88,7 +106,7 @@ impl NovaBar {
             buf[0] = ch as u8;
             let label = core::str::from_utf8(&buf).unwrap_or("1");
             let text_color = if is_active { Color::NOVA_ACCENT } else { Color::TEXT_SECONDARY };
-            draw_text(target, label, ws_rect.x + 8, ws_rect.y + 6, text_color);
+            draw_text(target, label, shifted_ws_rect.x + 8, shifted_ws_rect.y + 6, text_color);
         }
 
         // 4. Centered Application Island (Running Apps)
@@ -129,10 +147,10 @@ impl NovaBar {
             app_x += app_button_w + 8;
         }
 
-        // 5. System Status Island (Clock, Network, Power)
+        // 5. System Status Island (Clock, Date, Network, Audio, Power)
         let clock_w = 70;
-        let clock_x = screen_w as i32 - clock_w - 16;
-        let clock_y = bar_rect.y + 16;
+        let clock_x = screen_w as i32 - clock_w - 20;
+        let clock_y = bar_rect.y + 10;
 
         // Format uptime into HH:MM:SS
         let total_seconds = uptime_ms / 1000;
@@ -152,16 +170,28 @@ impl NovaBar {
         let time_str = core::str::from_utf8(&time_buf).unwrap_or("00:00:00");
 
         draw_text(target, time_str, clock_x, clock_y, Color::TEXT_PRIMARY);
+        draw_text(target, "Nov 14", clock_x + 6, clock_y + 16, Color::TEXT_SECONDARY);
 
         // Network status indicator pill: [ETH]
-        let net_x = clock_x - 50;
-        target.fill_rect(Rect::new(net_x, bar_rect.y + 14, 40, 20), Color::NOVA_CARD);
+        let net_x = clock_x - 48;
+        target.fill_rect(Rect::new(net_x, bar_rect.y + 12, 40, 24), Color::NOVA_CARD);
+        target.draw_rect_outline(Rect::new(net_x, bar_rect.y + 12, 40, 24), Color::from_hex(0x30363D), 1);
         draw_text(target, "ETH", net_x + 8, bar_rect.y + 16, Color::SUCCESS_GREEN);
 
+        // Audio Volume pill: [VOL]
+        let vol_x = net_x - 48;
+        target.fill_rect(Rect::new(vol_x, bar_rect.y + 12, 42, 24), Color::NOVA_CARD);
+        target.draw_rect_outline(Rect::new(vol_x, bar_rect.y + 12, 42, 24), Color::from_hex(0x30363D), 1);
+        draw_text(target, "VOL", vol_x + 8, bar_rect.y + 16, Color::from_hex(0x388BFD));
+
         // Power status indicator pill: [AC]
-        let pwr_x = net_x - 40;
-        target.fill_rect(Rect::new(pwr_x, bar_rect.y + 14, 32, 20), Color::NOVA_CARD);
+        let pwr_x = vol_x - 38;
+        target.fill_rect(Rect::new(pwr_x, bar_rect.y + 12, 32, 24), Color::NOVA_CARD);
+        target.draw_rect_outline(Rect::new(pwr_x, bar_rect.y + 12, 32, 24), Color::from_hex(0x30363D), 1);
         draw_text(target, "AC", pwr_x + 8, bar_rect.y + 16, Color::TEXT_SECONDARY);
+
+        // Windows 11 Desktop Peek Line (far right)
+        target.draw_line(screen_w as i32 - 4, bar_rect.y + 8, screen_w as i32 - 4, bar_rect.bottom() - 8, Color::from_hex(0x404854));
     }
 
     pub fn hit_test(

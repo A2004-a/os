@@ -173,38 +173,102 @@ impl Window {
         }
 
         if !self.is_frameless() {
-            // 1. Window Frame Background
+            // 1. Ambient Drop Shadow (elevation level 2)
+            if self.active {
+                for i in 1..=4 {
+                    let s_rect = Rect::new(
+                        self.rect.x - i,
+                        self.rect.y - i + 2,
+                        self.rect.width + (i as u32 * 2),
+                        self.rect.height + (i as u32 * 2),
+                    );
+                    let shadow_color = Color::from_argb((30 / (i + 1)) as u8, 0x05, 0x07, 0x0F);
+                    target.draw_rect_outline(s_rect, shadow_color, 1);
+                }
+            } else {
+                let s_rect = Rect::new(
+                    self.rect.x - 1,
+                    self.rect.y + 1,
+                    self.rect.width + 2,
+                    self.rect.height + 2,
+                );
+                target.draw_rect_outline(s_rect, Color::from_argb(20, 0x00, 0x00, 0x00), 1);
+            }
+
+            // 2. Window Frame Background
             target.fill_rect(self.rect, Color::NOVA_SURFACE);
 
-            // 2. Subtle 1-pixel border
-            let border_color = if self.active { Color::NOVA_BORDER } else { Color::from_hex(0x21262D) };
+            // 3. Modern Windows 11 style border
+            let border_color = if self.active { Color::from_hex(0x0078D4) } else { Color::from_hex(0x30363D) };
             target.draw_rect_outline(self.rect, border_color, 1);
 
-            // 3. Title Bar
-            let tb_color = if self.active { Color::TITLE_BAR_ACTIVE } else { Color::TITLE_BAR_INACTIVE };
-            target.fill_rect(Rect::new(self.rect.x, self.rect.y, self.rect.width, TITLE_BAR_HEIGHT), tb_color);
+            // 4. Title Bar (Mica Acrylic)
+            let tb_color = if self.active { Color::from_hex(0x21262D) } else { Color::from_hex(0x161B22) };
+            let tb_rect = Rect::new(self.rect.x, self.rect.y, self.rect.width, TITLE_BAR_HEIGHT);
+            target.fill_rect(tb_rect, tb_color);
 
-            // 4. Title Text
+            // Subtle top highlight line (acrylic glass edge)
+            target.draw_line(self.rect.x + 1, self.rect.y + 1, self.rect.right() - 1, self.rect.y + 1, Color::from_hex(0x30363D));
+
+            // Dividing line between title bar and client area
+            target.draw_line(self.rect.x, self.rect.y + TITLE_BAR_HEIGHT as i32, self.rect.right(), self.rect.y + TITLE_BAR_HEIGHT as i32, Color::from_hex(0x2D333B));
+
+            // 5. App Icon Badge
+            let icon_color = match self.title.as_str() {
+                "Nova Files" => Color::from_hex(0x388BFD),
+                "Nova System Monitor" => Color::from_hex(0x2EA043),
+                "Nova Settings" => Color::from_hex(0x8B949E),
+                "Nova Package Manager" => Color::from_hex(0xA371F7),
+                "Nova Terminal" => Color::from_hex(0x58A6FF),
+                "NovaOS Setup Wizard" => Color::from_hex(0x1F6FEB),
+                "Nova Recovery Center" => Color::from_hex(0xF0883E),
+                "Nova Device Manager" => Color::from_hex(0x56D364),
+                _ => Color::NOVA_ACCENT,
+            };
+            let icon_rect = Rect::new(self.rect.x + 8, self.rect.y + 8, 16, 16);
+            target.fill_rect(icon_rect, icon_color);
+            let icon_symbol = match self.title.as_str() {
+                "Nova Files" => "F",
+                "Nova System Monitor" => "M",
+                "Nova Settings" => "S",
+                "Nova Package Manager" => "P",
+                "Nova Terminal" => ">",
+                "NovaOS Setup Wizard" => "W",
+                "Nova Recovery Center" => "R",
+                "Nova Device Manager" => "D",
+                _ => "N",
+            };
+            draw_text(target, icon_symbol, icon_rect.x + 4, icon_rect.y, Color::TEXT_PRIMARY);
+
+            // 6. Title Text
             let text_color = if self.active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY };
-            draw_text(target, &self.title, self.rect.x + 12, self.rect.y + 8, text_color);
+            draw_text(target, &self.title, self.rect.x + 32, self.rect.y + 8, text_color);
 
-            // 5. Window Frame Control Buttons (Minimize, Maximize, Close)
+            // 7. Caption Buttons (Windows 11 style)
             if let Some(mbtn) = self.minimize_button_rect() {
-                target.fill_rect(mbtn, Color::from_hex(0x21262D));
-                draw_text(target, "-", mbtn.x + 10, mbtn.y + 4, Color::TEXT_SECONDARY);
+                target.fill_rect(mbtn, Color::from_hex(0x1E242B));
+                target.draw_rect_outline(mbtn, Color::from_hex(0x30363D), 1);
+                target.draw_line(mbtn.x + 8, mbtn.y + 12, mbtn.right() - 8, mbtn.y + 12, Color::TEXT_SECONDARY);
             }
             if let Some(xbtn) = self.maximize_button_rect() {
-                target.fill_rect(xbtn, Color::from_hex(0x21262D));
-                let sym = if self.state == WindowState::Maximized { "=" } else { "+" };
-                draw_text(target, sym, xbtn.x + 10, xbtn.y + 4, Color::TEXT_SECONDARY);
+                target.fill_rect(xbtn, Color::from_hex(0x1E242B));
+                target.draw_rect_outline(xbtn, Color::from_hex(0x30363D), 1);
+                if self.state == WindowState::Maximized {
+                    target.draw_rect_outline(Rect::new(xbtn.x + 7, xbtn.y + 6, 10, 10), Color::TEXT_SECONDARY, 1);
+                    target.draw_rect_outline(Rect::new(xbtn.x + 11, xbtn.y + 10, 10, 10), Color::TEXT_SECONDARY, 1);
+                } else {
+                    target.draw_rect_outline(Rect::new(xbtn.x + 8, xbtn.y + 7, 12, 10), Color::TEXT_SECONDARY, 1);
+                }
             }
             if let Some(cbtn) = self.close_button_rect() {
-                target.fill_rect(cbtn, Color::from_hex(0x282E38));
+                let c_bg = if self.active { Color::from_hex(0xC42B1C) } else { Color::from_hex(0x282E38) };
+                target.fill_rect(cbtn, c_bg);
+                target.draw_rect_outline(cbtn, Color::from_hex(0x404854), 1);
                 draw_text(target, "X", cbtn.x + 10, cbtn.y + 4, Color::TEXT_PRIMARY);
             }
         }
 
-        // 6. Blit Window Client Surface
+        // 8. Blit Window Client Surface
         let cr = self.client_rect();
         target.blit_alpha(cr.x, cr.y, &self.surface, None, self.opacity);
     }

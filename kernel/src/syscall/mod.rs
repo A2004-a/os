@@ -787,7 +787,10 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                     let pid = crate::scheduler::get_current_pid();
                     let mut comp_guard = crate::graphics::COMPOSITOR.lock();
                     if let Some(comp) = comp_guard.as_mut() {
-                        let win_id = comp.create_window(title, 100, 100, width, height, flags, pid);
+                        let cascade_idx = (comp.windows.len() % 6) as i32;
+                        let start_x = 100 + (cascade_idx * 36);
+                        let start_y = 50 + (cascade_idx * 28);
+                        let win_id = comp.create_window(title, start_x, start_y, width, height, flags, pid);
                         comp.composite();
                         win_id.0 as i64
                     } else {
