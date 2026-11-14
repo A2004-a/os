@@ -68,6 +68,9 @@ def run_test(timeout_sec=60):
                 if "[M11 RESULT] ALL 16 M11 GATES PASSED (0 ERRORS)" in line:
                     print("\n[TEST RUNNER] Detected Milestone M11 (VirtIO-GPU, Clipboard, DND) 16-Gate Verification PASS!")
 
+                if "[M12 RESULT] ALL 16 M12 GATES PASSED (0 ERRORS)" in line:
+                    print("\n[TEST RUNNER] Detected Milestone M12 (Userspace Threads, Futex, Dynamic Linking) 16-Gate Verification PASS!")
+
                 if "PID 1 entering steady-state supervisory loop" in line:
                     print("\n[TEST RUNNER] Detected PID 1 Steady-State Supervisory Loop & Full Kernel Certification!")
                     success = True

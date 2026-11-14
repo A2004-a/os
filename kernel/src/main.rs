@@ -261,6 +261,14 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     scheduler::init();
     ipc::init();
 
+    // 17b. Run Post-1.0 Milestone M12 (Userspace Threads, Futex, Dynamic Linking) Verification Suite (16 Gates)
+    let m12_post10_passed = process::m12_tests::run_all_m12_tests();
+    if m12_post10_passed {
+        serial::write_str("[KERNEL] Milestone M12 (Userspace Threads, Futex, Dynamic Linking) certified with 16 passing gates!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Milestone M12 encountered anomalies.\n");
+    }
+
     // 14. Run Milestone 4 Verification Test Suite & Spawn PID 1
     static INIT_ELF: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/novaos-apex-init");
     syscall::tests::run_m4_verification_suite(INIT_ELF);

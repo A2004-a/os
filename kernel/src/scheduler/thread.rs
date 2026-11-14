@@ -92,6 +92,7 @@ pub struct Thread {
     pub quantum_remaining: u32,
     pub ticks_run: u64,
     pub exit_code: Option<i32>,
+    pub fs_base: u64,
 }
 
 impl Thread {
@@ -128,6 +129,7 @@ impl Thread {
             quantum_remaining: priority.default_quantum_ms(),
             ticks_run: 0,
             exit_code: None,
+            fs_base: 0,
         }
     }
 
@@ -141,9 +143,25 @@ impl Thread {
         cr3: u64,
         priority: ThreadPriority,
     ) -> Self {
+        Self::new_user_with_arg(id, process_id, name, entry, user_stack, kernel_stack, cr3, priority, 0, 0)
+    }
+
+    pub fn new_user_with_arg(
+        id: ThreadId,
+        process_id: u32,
+        name: &str,
+        entry: u64,
+        user_stack: u64,
+        kernel_stack: u64,
+        cr3: u64,
+        priority: ThreadPriority,
+        arg: u64,
+        fs_base: u64,
+    ) -> Self {
         let mut context = CpuContext::empty();
         context.rip = entry;
         context.rsp = user_stack;
+        context.rdi = arg; // SysV ABI: First parameter passed in RDI
         context.cs = 0x20 | 3; // User Code Selector (0x23)
         context.ss = 0x18 | 3; // User Data Selector (0x1B)
         context.rflags = 0x202; // IF = 1
@@ -167,6 +185,7 @@ impl Thread {
             quantum_remaining: priority.default_quantum_ms(),
             ticks_run: 0,
             exit_code: None,
+            fs_base,
         }
     }
 

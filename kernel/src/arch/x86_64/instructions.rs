@@ -104,3 +104,22 @@ pub unsafe fn reload_segments(cs: u16, ds: u16) {
         options(preserves_flags)
     );
 }
+
+pub const IA32_FS_BASE: u32 = 0xC000_0100;
+pub const IA32_GS_BASE: u32 = 0xC000_0101;
+pub const IA32_KERNEL_GS_BASE: u32 = 0xC000_0102;
+
+#[inline(always)]
+pub unsafe fn rdmsr(msr: u32) -> u64 {
+    let low: u32;
+    let high: u32;
+    asm!("rdmsr", in("ecx") msr, out("eax") low, out("edx") high, options(nomem, nostack, preserves_flags));
+    ((high as u64) << 32) | (low as u64)
+}
+
+#[inline(always)]
+pub unsafe fn wrmsr(msr: u32, val: u64) {
+    let low = val as u32;
+    let high = (val >> 32) as u32;
+    asm!("wrmsr", in("ecx") msr, in("eax") low, in("edx") high, options(nomem, nostack, preserves_flags));
+}

@@ -305,6 +305,16 @@ fn reschedule(ctx: &mut ExceptionContext, current_terminated: bool) {
         }
     }
 
+    // 2b. Update TLS base (IA32_FS_BASE) if user thread
+    if target.is_user {
+        unsafe {
+            crate::arch::x86_64::instructions::wrmsr(
+                crate::arch::x86_64::instructions::IA32_FS_BASE,
+                target.fs_base,
+            );
+        }
+    }
+
     // 3. Load target thread context into exception context
     copy_context_to_exception(&target.context, ctx);
 }
@@ -322,6 +332,104 @@ pub fn get_current_pid() -> u32 {
 pub fn get_stats() -> SchedulerStats {
     let sched = unsafe { &*addr_of_mut!(SCHEDULER) };
     sched.stats
+}
+
+pub fn spawn_user_thread_with_arg(
+    name: &str,
+    pid: u32,
+    entry: u64,
+    user_stack_top: u64,
+    arg: u64,
+    cr3: u64,
+    priority: ThreadPriority,
+    fs_base: u64,
+) -> Result<ThreadId, SchedulerError> {
+    unsafe {
+        let sched = &mut *addr_of_mut!(SCHEDULER);
+
+        let free_idx = sched.threads.iter().position(|t| t.is_none())
+            .ok_or(SchedulerError::TableFull)?;
+
+        let kstack = KernelStack::allocate(16)
+            .map_err(|_| SchedulerError::StackAllocationFailed)?;
+
+        let tid = ThreadId(sched.next_tid);
+        sched.next_tid += 1;
+
+        let thread = Thread::new_user_with_arg(
+            tid,
+            pid,
+            name,
+            entry,
+            user_stack_top,
+            kstack.top.as_u64(),
+            cr3,
+            priority,
+            arg,
+            fs_base,
+        );
+
+        sched.threads[free_idx] = Some(thread);
+        Ok(tid)
+    }
+}
+
+pub fn set_thread_fs_base(tid: ThreadId, fs_base: u64) -> Result<(), SchedulerError> {
+    let sched = unsafe { &mut *addr_of_mut!(SCHEDULER) };
+    for slot in sched.threads.iter_mut() {
+        if let Some(t) = slot {
+            if t.id == tid {
+                t.fs_base = fs_base;
+                if sched.threads[sched.current_idx].as_ref().map(|curr| curr.id) == Some(tid) {
+                    unsafe {
+                        crate::arch::x86_64::instructions::wrmsr(
+                            crate::arch::x86_64::instructions::IA32_FS_BASE,
+                            fs_base,
+                        );
+                    }
+                }
+                return Ok(());
+            }
+        }
+    }
+    Err(SchedulerError::ThreadNotFound)
+}
+
+pub fn get_thread_fs_base(tid: ThreadId) -> Result<u64, SchedulerError> {
+    let sched = unsafe { &*addr_of_mut!(SCHEDULER) };
+    for slot in sched.threads.iter() {
+        if let Some(t) = slot {
+            if t.id == tid {
+                return Ok(t.fs_base);
+            }
+        }
+    }
+    Err(SchedulerError::ThreadNotFound)
+}
+
+pub fn set_thread_state(tid: ThreadId, state: ThreadState) -> Result<(), SchedulerError> {
+    let sched = unsafe { &mut *addr_of_mut!(SCHEDULER) };
+    for slot in sched.threads.iter_mut() {
+        if let Some(t) = slot {
+            if t.id == tid {
+                t.state = state;
+                return Ok(());
+            }
+        }
+    }
+    Err(SchedulerError::ThreadNotFound)
+}
+
+pub fn get_thread_state(tid: ThreadId) -> Result<ThreadState, SchedulerError> {
+    let sched = unsafe { &*addr_of_mut!(SCHEDULER) };
+    for slot in sched.threads.iter() {
+        if let Some(t) = slot {
+            if t.id == tid {
+                return Ok(t.state);
+            }
+        }
+    }
+    Err(SchedulerError::ThreadNotFound)
 }
 
 fn copy_exception_to_context(src: &ExceptionContext, dst: &mut CpuContext) {

@@ -1,7 +1,9 @@
 //! NovaOS Apex — Process Management, Ring 3 Address Spaces & Lifecycle Accounting
 //! Implements Process Control Blocks (PCB), parent-child relationships, per-process handle tables, and cleanups.
 
+pub mod dynamic_loader;
 pub mod elf_loader;
+pub mod m12_tests;
 
 extern crate alloc;
 use alloc::vec::Vec;

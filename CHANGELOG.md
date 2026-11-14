@@ -2,6 +2,26 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [1.3.0] - 2026-11-14 — Post-1.0 Milestone M12 (Userspace Threads, Futex, Dynamic Linking)
+
+### Added
+- **Userspace Multi-Threading Subsystem (`kernel/src/scheduler/thread.rs`, `mod.rs`):**
+  - Clone-style thread spawning via `SYS_THREAD_CREATE` (56) with canonical user address validation.
+  - Page table and address space sharing (`CR3` unification) across child threads with isolated 16 KiB user stacks and first argument passing via `RDI`.
+  - Thread-Local Storage (TLS) configuration via `SYS_SET_FS_BASE` (59) and `SYS_GET_FS_BASE` (60) controlling `IA32_FS_BASE` MSR (`0xC000_0100`).
+  - Thread termination and kernel stack reclamation via `SYS_THREAD_EXIT` (57).
+- **Fast Userspace Mutex (Futex) Subsystem (`kernel/src/syscall/futex.rs`):**
+  - Hash-bucketed kernel wait-queues (64 buckets) keyed by `(PID, uaddr)`.
+  - Atomic condition check preventing missed wakeups (`FUTEX_WAIT`).
+  - Single and broadcast waiter waking (`FUTEX_WAKE`).
+  - Atomic wait-queue migration primitive (`FUTEX_REQUEUE` / `FUTEX_CMP_REQUEUE`).
+- **Dynamic Linking & ELF Shared Object Loader (`kernel/src/process/dynamic_loader.rs`):**
+  - ELF64 dynamic section (`PT_DYNAMIC`) parsing: `DT_STRTAB`, `DT_SYMTAB`, `DT_NEEDED`, `DT_RELA`, `DT_RELASZ`.
+  - x86_64 relocation engine: `R_X86_64_RELATIVE` (base load rebase), `R_X86_64_GLOB_DAT` (GOT symbol binding), and `R_X86_64_JUMP_SLOT` (PLT function pointer binding).
+  - Shared object registry with dependency resolution (`DT_NEEDED`), `sys_dlopen` (61), and `sys_dlsym` (62).
+- **Milestone M12 Verification Suite (`kernel/src/process/m12_tests.rs`):**
+  - 16 certified automated test gates verifying 16/16 with 0 errors (235/235 total system gates passing).
+
 ## [1.2.0] - 2026-11-14 — Post-1.0 Milestone M11 (VirtIO-GPU, System Clipboard, Drag and Drop)
 
 ### Added

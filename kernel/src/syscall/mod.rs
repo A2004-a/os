@@ -1,6 +1,7 @@
 //! NovaOS Apex — Architecture System Call Dispatcher & 14 POSIX/NovaOS Primitives
 //! Implements syscall gates (vector 0x80), pointer checks, handle tables, and Ring 3 transitions.
 
+pub mod futex;
 pub mod tests;
 pub mod validate;
 
@@ -70,6 +71,13 @@ pub const SYS_CLIPBOARD_WRITE: usize = 52;
 pub const SYS_CLIPBOARD_READ: usize = 53;
 pub const SYS_CLIPBOARD_CLEAR: usize = 54;
 pub const SYS_GET_GPU_INFO: usize = 55;
+pub const SYS_THREAD_CREATE: usize = 56;
+pub const SYS_THREAD_EXIT: usize = 57;
+pub const SYS_FUTEX: usize = 58;
+pub const SYS_SET_FS_BASE: usize = 59;
+pub const SYS_GET_FS_BASE: usize = 60;
+pub const SYS_DLOPEN: usize = 61;
+pub const SYS_DLSYM: usize = 62;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -137,8 +145,8 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
     let arg2 = ctx.rsi;
     let arg3 = ctx.rdx;
     let arg4 = ctx.r10;
-    let _arg5 = ctx.r8;
-    let _arg6 = ctx.r9;
+    let arg5 = ctx.r8;
+    let arg6 = ctx.r9;
 
     let result: i64 = match syscall_num {
         SYS_EXIT => {
@@ -1437,6 +1445,99 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
         SYS_GET_GPU_INFO => {
             let gpu = crate::drivers::virtio_gpu::get_gpu_driver();
             if gpu.is_hardware { 1 } else { 0 }
+        }
+
+        SYS_THREAD_CREATE => {
+            let entry = arg1;
+            let stack_top = arg2;
+            let arg = arg3;
+            let _flags = arg4;
+
+            if entry >= 0x0000_8000_0000_0000 || stack_top >= 0x0000_8000_0000_0000 || stack_top < 4096 {
+                -14 // EFAULT
+            } else if let Some(proc) = crate::process::get_current_process_mut() {
+                let pid = proc.id.0;
+                let cr3 = proc.pml4_phys.as_u64();
+                match crate::scheduler::spawn_user_thread_with_arg(
+                    "user_thread",
+                    pid,
+                    entry,
+                    stack_top,
+                    arg,
+                    cr3,
+                    crate::scheduler::thread::ThreadPriority::Normal,
+                    0,
+                ) {
+                    Ok(tid) => tid.0 as i64,
+                    Err(_) => -12, // ENOMEM
+                }
+            } else {
+                -1 // EPERM
+            }
+        }
+
+        SYS_THREAD_EXIT => {
+            let exit_code = arg1 as i32;
+            crate::scheduler::exit_current(exit_code, ctx);
+            0
+        }
+
+        SYS_FUTEX => {
+            let uaddr = arg1;
+            let op = arg2 as u32;
+            let val = arg3 as u32;
+            let timeout_ptr = arg4;
+            let uaddr2 = arg5;
+            let val3 = arg6 as u32;
+
+            match futex::sys_futex(uaddr, op, val, timeout_ptr, uaddr2, val3) {
+                Ok(ret) => ret,
+                Err(err) => err as i64,
+            }
+        }
+
+        SYS_SET_FS_BASE => {
+            let fs_base = arg1;
+            if fs_base >= 0x0000_8000_0000_0000 && fs_base < 0xFFFF_8000_0000_0000 {
+                -14 // Non-canonical address
+            } else {
+                let tid = crate::scheduler::get_current_tid();
+                match crate::scheduler::set_thread_fs_base(tid, fs_base) {
+                    Ok(()) => 0,
+                    Err(_) => -22, // EINVAL
+                }
+            }
+        }
+
+        SYS_GET_FS_BASE => {
+            let tid = crate::scheduler::get_current_tid();
+            match crate::scheduler::get_thread_fs_base(tid) {
+                Ok(base) => base as i64,
+                Err(_) => -22,
+            }
+        }
+
+        SYS_DLOPEN => {
+            let path_ptr = arg1;
+            match validate_user_string(path_ptr, 128) {
+                Ok(path) => match crate::process::dynamic_loader::sys_dlopen(path) {
+                    Ok(handle) => handle as i64,
+                    Err(e) => e as i64,
+                },
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_DLSYM => {
+            let handle = arg1;
+            let name_ptr = arg2;
+            match validate_user_string(name_ptr, 64) {
+                Ok(name) => match crate::process::dynamic_loader::sys_dlsym(handle, name) {
+                    Ok(addr) => addr as i64,
+                    Err(e) => e as i64,
+                },
+                Err(e) => -(e as i32 as i64),
+            }
         }
 
         _ => {
