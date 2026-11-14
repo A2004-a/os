@@ -15,6 +15,7 @@ use novaos_apex_kernel::ipc;
 use novaos_apex_kernel::memory;
 use novaos_apex_kernel::network;
 use novaos_apex_kernel::objects;
+use novaos_apex_kernel::process;
 use novaos_apex_kernel::scheduler;
 use novaos_apex_kernel::serial;
 use novaos_apex_kernel::syscall;
@@ -109,6 +110,7 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
     let m2_mem_passed = memory::tests::run_all_tests();
     let m2_obj_passed = objects::tests::run_object_tests();
     memory::stats::print_summary();
+    process::init();
 
     // 6. Initialize Milestone 3 Device Drivers (in exact Section 10 order)
     serial::write_str("\n[KERNEL] Initializing Milestone 3 Device Drivers...\n");
@@ -165,7 +167,17 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 8 WARN] Desktop shell verification encountered anomalies.\n");
     }
 
-    // 13. Initialize Scheduler & IPC Subsystems
+    // 13. Run Milestone 9 Core Native Applications Verification Suite
+    serial::write_str("\n[KERNEL] Initializing Milestone 9 Core Native Applications...\n");
+    let m9_apps_passed = graphics::app_tests::run_m9_verification_suite();
+    if m9_apps_passed {
+        serial::write_str("\n[MILESTONE 9 VERIFIED] Nova Files, Nova System Monitor, Nova Settings,\n");
+        serial::write_str("                       Nova Package Manager, and Nova Terminal confirmed operational!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 9 WARN] Core native applications encountered anomalies.\n");
+    }
+
+    // 14. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 

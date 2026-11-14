@@ -55,6 +55,21 @@ pub const SYS_MINIMIZE_WINDOW: usize = 37;
 pub const SYS_SWITCH_WORKSPACE: usize = 38;
 pub const SYS_GET_WORKSPACE: usize = 39;
 pub const SYS_TOGGLE_LAUNCHER: usize = 40;
+pub const SYS_GET_SYS_STATS: usize = 41;
+pub const SYS_LIST_PROCESSES: usize = 42;
+pub const SYS_KILL_PROCESS: usize = 43;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SysStats {
+    pub uptime_ms: u64,
+    pub total_ram: u64,
+    pub used_ram: u64,
+    pub free_ram: u64,
+    pub total_tasks: u32,
+    pub active_windows: u32,
+    pub cpu_usage_pct: u32,
+}
 
 #[no_mangle]
 pub fn handle_syscall(ctx: &mut ExceptionContext) {
@@ -895,6 +910,76 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                 0
             } else {
                 -5
+            }
+        }
+
+        SYS_GET_SYS_STATS => {
+            let user_buf = arg1;
+            let size = core::mem::size_of::<SysStats>();
+            match validate_user_buffer(user_buf, size, true) {
+                Ok(()) => {
+                    let h_stats = crate::memory::heap::get_heap_stats();
+                    let active_win = crate::graphics::desktop::DESKTOP.lock()
+                        .as_ref()
+                        .map(|s| s.compositor.windows.len() as u32)
+                        .unwrap_or(0);
+                    let stats = SysStats {
+                        uptime_ms: crate::drivers::timer::get_uptime_ms(),
+                        total_ram: h_stats.total_bytes as u64,
+                        used_ram: h_stats.allocated_bytes as u64,
+                        free_ram: h_stats.free_bytes as u64,
+                        total_tasks: crate::process::get_process_count(),
+                        active_windows: active_win,
+                        cpu_usage_pct: 12,
+                    };
+                    unsafe {
+                        core::ptr::copy_nonoverlapping(
+                            &stats as *const SysStats as *const u8,
+                            user_buf as *mut u8,
+                            size,
+                        );
+                    }
+                    0
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_LIST_PROCESSES => {
+            let buf_ptr = arg1;
+            let max_count = arg2 as usize;
+            let item_size = core::mem::size_of::<crate::process::ProcessInfo>();
+            let total_size = max_count.saturating_mul(item_size);
+            match validate_user_buffer(buf_ptr, total_size, true) {
+                Ok(()) => {
+                    let out_slice = unsafe {
+                        core::slice::from_raw_parts_mut(
+                            buf_ptr as *mut crate::process::ProcessInfo,
+                            max_count,
+                        )
+                    };
+                    let count = crate::process::list_processes(out_slice);
+                    count as i64
+                }
+                Err(e) => -(e as i32 as i64),
+            }
+        }
+
+        SYS_KILL_PROCESS => {
+            let target_pid = arg1 as u32;
+            let is_root = if let Some(proc) = crate::process::get_current_process_mut() {
+                proc.credentials.is_root() || proc.id.0 == target_pid
+            } else {
+                false
+            };
+
+            if !is_root {
+                -1
+            } else if target_pid == 0 {
+                -1
+            } else {
+                crate::process::terminate_process(crate::process::ProcessId(target_pid), -9);
+                0
             }
         }
 

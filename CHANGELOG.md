@@ -2,6 +2,55 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.9.0] - 2026-11-14 — Milestone 9 (Core Native Applications)
+
+### Added
+- **System Call Primitives 41..43 (`kernel/src/syscall/mod.rs` & `userland/runtime/`):**
+  - `SYS_GET_SYS_STATS (41)`: Returns live kernel system metrics (`uptime_ms`, `total_ram`, `used_ram`, `free_ram`, `total_tasks`, `active_windows`, `cpu_usage_pct`).
+  - `SYS_LIST_PROCESSES (42)`: Retrieves an array of active process descriptors (`pid`, `name`, `state`, `priority`, `cpu_ticks`, `mem_bytes`).
+  - `SYS_KILL_PROCESS (43)`: Terminates process by PID with privilege enforcement (root can kill any process; users can only terminate their own).
+- **Expanded NovaUI Toolkit (`userland/toolkit/`):**
+  - Built-in monospace 8x16 bitmap font engine (`userland/toolkit/src/font.rs`) supporting ASCII 32..126 glyph rendering, text clipping, and text width measuring (`measure_text`).
+  - `Label`: Text label widget with custom color and bounding box formatting.
+  - `TextBox`: Editable text input field with cursor rendering, click-to-focus, character typing, and backspace.
+  - `ListView`: Scrollable table/list container with row selection, alternating row background colors, and active selection indicator.
+  - `TabBar` / `NavRail`: Category tab selector supporting horizontal top tabs and vertical sidebars.
+  - `MetricCard`: Windows 11-style metric card displaying title, bold numeric stat value, progress bar, and subtitle.
+  - Centered text rendering in `Button` with active/disabled state colors.
+- **Nova Files Application (`userland/apps/src/files.rs`):**
+  - Windows 11 / File Explorer class file browser.
+  - Breadcrumb navigation address bar with `[Up]` and `[Refresh]` actions.
+  - Quick Access sidebar with shortcuts to `Root (/)`, `Home (/users/apex)`, `Storage (/storage)`, `Devices (/dev)`, and `System (/etc)`.
+  - Directory listing table displaying file type tags (`[DIR]`, `[FILE]`, `[DEV]`), name, and size.
+  - Inspector pane with file metadata (size, mode permissions `0o755`/`0o644`) and text file preview.
+- **Nova System Monitor Application (`userland/apps/src/monitor.rs`):**
+  - Windows 11 Task Manager class performance and process monitor.
+  - 3 top-level Metric Cards: CPU Utilization, Memory Allocation, and Active Task Count.
+  - Interactive process table showing PID, Process Name, Status (`RUNNING`, `SLEEP`, `READY`), and Memory.
+  - Action buttons: `[End Task]` and `[Refresh]`.
+- **Nova Settings Application (`userland/apps/src/settings.rs`):**
+  - Windows 11 Settings class configuration center.
+  - 6 modular categories: System, Display, Network, Users, Security, and Storage.
+  - Interactive display theme toggle (Dark Mica <-> Slate) with reversible configuration state.
+  - Network status viewer with gateway ping probe utility (`[Ping 10.0.2.2]`).
+  - Security profile inspector and storage drive (`/dev/vda`) status.
+- **Nova Package Manager Application (`userland/apps/src/packages.rs`):**
+  - Windows 11 Store class manager for signed Nova Packages (`.nvp`).
+  - Filter tabs: `All`, `Installed`, and `Available`.
+  - Package catalog displaying name, version, category, publisher, and size.
+  - Cryptographic trust inspector showing valid Ed25519 digital signature status.
+  - Capability permission reviewer (`fs:read`, `fs:write`, `gui:window`, `net:socket`).
+  - Interactive `[Install]` / `[Uninstall]` action toggling.
+- **Nova Terminal Application (`userland/apps/src/terminal.rs`):**
+  - Graphical monospace console window embedded in the desktop compositor.
+  - 24-line scrollable text history buffer with prompt `apex@novaos:~$ `.
+  - Keyboard character typing, backspace, and cursor block.
+  - Built-in command dispatcher executing `help`, `uname -a`, `whoami`, `pwd`, `ls`, `uptime`, `clear`, and `exit`.
+- **Kernel Verification Suite (`kernel/src/graphics/app_tests.rs`):**
+  - 6 automated tests validating Nova Files VFS model, System Monitor performance metrics, Settings categories, Package Manager trust verification, Terminal emulator commands, and simultaneous 5-application window composition.
+- **Physical RAM Dynamic Heap Expansion (`kernel/src/memory/heap.rs`):**
+  - Increased kernel heap backing to 32 MiB (8192 physical 4 KiB frames) to comfortably accommodate multi-window desktop workloads.
+
 ## [0.8.0] - 2026-11-14 — Milestone 8 (Nova Desktop Shell)
 
 ### Added

@@ -1,6 +1,7 @@
 //! NovaOS Apex — Graphics & Window Server Subsystem (Milestone 7)
 //! 2D Software Compositor, Window Hierarchy, Alpha Blending, and NovaUI Engine.
 
+pub mod app_tests;
 pub mod bar;
 pub mod color;
 pub mod compositor;

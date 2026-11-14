@@ -35,6 +35,13 @@ if ($Release) { $initArgs += "--release" }
 $initArgs += @("--", "-C", "link-arg=--image-base=0x40000000")
 & cargo $initArgs
 
+# 2b. Compile Userland Apps Suite (Ring 3)
+Write-Host "[2b/5] Building NovaOS Apex Applications Suite (novaos-apex-apps)..." -ForegroundColor Yellow
+$appsArgs = @("rustc", "--package", "novaos-apex-apps", "--bin", "novaos-apex-apps", "--target", "x86_64-unknown-none")
+if ($Release) { $appsArgs += "--release" }
+$appsArgs += @("--", "-C", "link-arg=--image-base=0x40200000")
+& cargo $appsArgs
+
 # 3. Compile UEFI Bootloader
 Write-Host "[3/5] Building 64-bit UEFI Loader (BOOTX64.EFI)..." -ForegroundColor Yellow
 $uefiArgs = @("build", "--package", "novaos-apex-boot", "--target", "x86_64-unknown-uefi")
@@ -92,6 +99,15 @@ if (Test-Path $shellSrc) {
     Copy-Item $shellSrc $shellDst -Force
     Copy-Item $shellSrc $shellDstFallback -Force
     Write-Host "[5/5] Created userland shell payload: $shellDst" -ForegroundColor Green
+}
+
+$appsSrc = "target\x86_64-unknown-none\$targetMode\novaos-apex-apps"
+$appsDst = Join-Path $buildDir "apps"
+$appsDstFallback = Join-Path $efiDir "apps"
+if (Test-Path $appsSrc) {
+    Copy-Item $appsSrc $appsDst -Force
+    Copy-Item $appsSrc $appsDstFallback -Force
+    Write-Host "[6/6] Created userland apps payload: $appsDst" -ForegroundColor Green
 }
 
 # 4. Copy boot configuration

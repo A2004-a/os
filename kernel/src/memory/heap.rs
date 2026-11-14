@@ -157,8 +157,8 @@ unsafe impl GlobalAlloc for LockedKernelHeap {
 pub fn init() {
     let heap = unsafe { &mut *addr_of_mut!(KERNEL_HEAP_STATE) };
 
-    // Dynamically allocate 16 MiB (4096 contiguous 4 KiB frames) from physical RAM
-    const HEAP_FRAMES: usize = 4096;
+    // Dynamically allocate 32 MiB (8192 contiguous 4 KiB frames) from physical RAM
+    const HEAP_FRAMES: usize = 8192;
     if let Some(phys) = crate::memory::frame::alloc_contiguous_frames(HEAP_FRAMES) {
         heap.base_ptr = phys.as_u64() as *mut u8;
         heap.size = HEAP_FRAMES * crate::memory::address::PAGE_SIZE;

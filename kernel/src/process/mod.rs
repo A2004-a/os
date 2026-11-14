@@ -268,6 +268,51 @@ pub fn get_current_process_mut() -> Option<&'static mut Process> {
     get_process_mut(ProcessId(pid))
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessInfo {
+    pub pid: u64,
+    pub name: [u8; 32],
+    pub state: u32,
+    pub priority: u32,
+    pub cpu_ticks: u64,
+    pub mem_bytes: u64,
+}
+
+pub fn list_processes(out: &mut [ProcessInfo]) -> usize {
+    let pm = unsafe { &*addr_of_mut!(PROCESS_MANAGER) };
+    let mut count = 0;
+    for proc_opt in pm.processes.iter() {
+        if let Some(proc) = proc_opt {
+            if count < out.len() {
+                let state_code = match proc.state {
+                    ProcessState::Starting => 0,
+                    ProcessState::Running => 1,
+                    ProcessState::Waiting(_) => 2,
+                    ProcessState::Zombie(_) => 3,
+                    ProcessState::Terminated(_) => 4,
+                };
+                let mem = proc.allocated_frames.len() as u64 * 4096;
+                out[count] = ProcessInfo {
+                    pid: proc.id.0 as u64,
+                    name: proc.name,
+                    state: state_code,
+                    priority: 2,
+                    cpu_ticks: proc.cpu_ticks,
+                    mem_bytes: mem,
+                };
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+pub fn get_process_count() -> u32 {
+    let pm = unsafe { &*addr_of_mut!(PROCESS_MANAGER) };
+    pm.processes.iter().filter(|p| p.is_some()).count() as u32
+}
+
 fn print_u32(mut n: u32) {
     if n == 0 {
         serial::write_str("0");

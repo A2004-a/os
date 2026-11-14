@@ -45,6 +45,32 @@ pub const SYS_MINIMIZE_WINDOW: usize = 37;
 pub const SYS_SWITCH_WORKSPACE: usize = 38;
 pub const SYS_GET_WORKSPACE: usize = 39;
 pub const SYS_TOGGLE_LAUNCHER: usize = 40;
+pub const SYS_GET_SYS_STATS: usize = 41;
+pub const SYS_LIST_PROCESSES: usize = 42;
+pub const SYS_KILL_PROCESS: usize = 43;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SysStats {
+    pub uptime_ms: u64,
+    pub total_ram: u64,
+    pub used_ram: u64,
+    pub free_ram: u64,
+    pub total_tasks: u32,
+    pub active_windows: u32,
+    pub cpu_usage_pct: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessInfo {
+    pub pid: u64,
+    pub name: [u8; 32],
+    pub state: u32,
+    pub priority: u32,
+    pub cpu_ticks: u64,
+    pub mem_bytes: u64,
+}
 
 pub const SNAP_NONE: u32 = 0;
 pub const SNAP_LEFT_HALF: u32 = 1;
@@ -777,6 +803,36 @@ pub fn get_workspace() -> u8 {
 // 41. toggle_launcher
 pub fn toggle_launcher() -> Result<(), i32> {
     let ret = unsafe { syscall0(SYS_TOGGLE_LAUNCHER) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 42. get_sys_stats
+pub fn get_sys_stats(stats: &mut SysStats) -> Result<(), i32> {
+    let ret = unsafe { syscall1(SYS_GET_SYS_STATS, stats as *mut SysStats as u64) };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 43. list_processes
+pub fn list_processes(out: &mut [ProcessInfo]) -> Result<usize, i32> {
+    let ret = unsafe { syscall2(SYS_LIST_PROCESSES, out.as_mut_ptr() as u64, out.len() as u64) };
+    if ret >= 0 {
+        Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 44. kill_process
+pub fn kill_process(pid: u64) -> Result<(), i32> {
+    let ret = unsafe { syscall1(SYS_KILL_PROCESS, pid) };
     if ret >= 0 {
         Ok(())
     } else {
