@@ -55,9 +55,28 @@ if (Test-Path $loaderSrc) {
 
 $kernelSrc = "target\x86_64-unknown-none\$targetMode\novaos-apex-kernel"
 $kernelDst = Join-Path $buildDir "novaos-apex.elf"
+$kernelDstFallback = Join-Path $efiDir "novaos-apex.elf"
 if (Test-Path $kernelSrc) {
     Copy-Item $kernelSrc $kernelDst -Force
+    Copy-Item $kernelSrc $kernelDstFallback -Force
     Write-Host "[3/3] Created kernel payload: $kernelDst" -ForegroundColor Green
+}
+
+# 4. Copy boot configuration
+$cfgSrc = Join-Path $buildDir "novaos.cfg"
+$cfgFallback = Join-Path $efiDir "novaos.cfg"
+if (Test-Path $cfgSrc) {
+    Copy-Item $cfgSrc $cfgFallback -Force
+} else {
+    $defaultCfg = @"
+timeout=3
+default=novaos-apex
+kernel=\novaos-apex.elf
+cmdline=console=com1 init=/init loglevel=debug
+video_mode=1024x768x32
+"@
+    Set-Content -Path $cfgSrc -Value $defaultCfg
+    Set-Content -Path $cfgFallback -Value $defaultCfg
 }
 
 Write-Host "`n[SUCCESS] NovaOS Apex image build sequence complete!" -ForegroundColor Green

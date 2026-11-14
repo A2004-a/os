@@ -24,5 +24,10 @@ mkdir -p build/EFI/BOOT
 
 cp -f "target/x86_64-unknown-uefi/$TARGET_MODE/novaos-apex-boot.efi" build/EFI/BOOT/BOOTX64.EFI
 cp -f "target/x86_64-unknown-none/$TARGET_MODE/novaos-apex-kernel" build/novaos-apex.elf
+cp -f "target/x86_64-unknown-none/$TARGET_MODE/novaos-apex-kernel" build/EFI/BOOT/novaos-apex.elf
+
+if [ -f "build/novaos.cfg" ]; then
+    cp -f "build/novaos.cfg" build/EFI/BOOT/novaos.cfg
+fi
 
 echo "[SUCCESS] NovaOS Apex image build complete: build/EFI/BOOT/BOOTX64.EFI"

@@ -2,9 +2,9 @@
 
 | Milestone | Title | Focus Area | Status |
 | :--- | :--- | :--- | :--- |
-| **M0** | **Toolchain & Boot Proof** | Pinned Rust toolchain, UEFI target, image builder, serial logger, QEMU boot test, CI | **Current** |
-| **M1** | **UEFI Boot Manager & Kernel Entry** | Memory map, GOP framebuffer discovery, ACPI RSDP, GDT, TSS, IDT, exceptions | Scheduled |
-| **M2** | **Memory & Object Model** | 4-level paging, physical frame allocator, heap manager, capability handles | Scheduled |
+| **M0** | **Toolchain & Boot Proof** | Pinned Rust toolchain, UEFI target, image builder, serial logger, QEMU boot test, CI | **Completed** |
+| **M1** | **UEFI Boot Manager & Kernel Entry** | Memory map, GOP framebuffer discovery, ACPI RSDP, GDT, TSS, IDT, exceptions | **Completed** |
+| **M2** | **Memory & Object Model** | 4-level paging, physical frame allocator, heap manager, capability handles | **Next (Scheduled)** |
 | **M3** | **Interrupts, Devices & Drivers** | PIT 8254 timer, 8259 PIC, PS/2 keyboard/mouse, PCI enumerator, VirtIO block | Scheduled |
 | **M4** | **Scheduling, Ring 3 & Syscalls** | Priority scheduler, context switching, Ring 3 isolation, int 0x80 gate (14 syscalls), PID 1 | Scheduled |
 | **M5** | **Files, Storage & User Profiles** | VFS abstraction, persistent NovaFS block storage, user directories, shell | Scheduled |

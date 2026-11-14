@@ -1,6 +1,11 @@
-//! NovaOS Apex — Kernel Library
+//! NovaOS Apex — Bare-Metal Kernel Core Library
+//! Milestone 1: UEFI Boot Handshake, GDT/TSS, IDT, Exceptions & Controlled Fault Verification
 
 #![no_std]
+
+pub mod arch;
+pub mod boot;
+pub mod panic;
 
 pub mod serial {
     use core::arch::asm;
