@@ -1,4 +1,4 @@
-.PHONY: all build image run debug test test-qemu clean
+.PHONY: all build image run debug test test-qemu evidence clean
 
 all: build
 
@@ -31,6 +31,9 @@ test:
 
 test-qemu: image
 	./tools/test-qemu
+
+evidence: image
+	python tools/test_runner.py
 
 clean:
 	cargo clean
