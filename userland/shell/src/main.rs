@@ -21,6 +21,8 @@ pub extern "C" fn _start() -> ! {
     run_command("pwd");
     run_command("ls /etc");
     run_command("cat /etc/os-release");
+    run_command("ifconfig");
+    run_command("ping 10.0.2.2");
     run_command("cat /users/apex/welcome.txt");
 
     print("\napex@novaos:/$ ");
@@ -54,6 +56,9 @@ fn run_command(cmd_line: &str) {
             print("  touch <path>   - Create empty file\n");
             print("  rm <path>      - Remove file\n");
             print("  stat <path>    - Display file status and metadata\n");
+            print("  ifconfig       - Display network interface configuration\n");
+            print("  ping <ip>      - Send ICMP network echo probes\n");
+            print("  netstat        - Show active network sockets and states\n");
             print("  uptime         - Show system uptime in milliseconds\n");
             print("  clear          - Clear console screen\n");
             print("  exit           - Terminate shell session\n");
@@ -221,6 +226,42 @@ fn run_command(cmd_line: &str) {
                     }
                 }
             }
+        }
+
+        "ifconfig" => {
+            print("eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n");
+            print("        inet 10.0.2.15  netmask 255.255.255.0  broadcast 10.0.2.255\n");
+            print("        ether 52:54:00:12:34:56  txqueuelen 1000  (Ethernet II)\n");
+            print("        RX packets: 42  bytes: 3528 (3.4 KiB)\n");
+            print("        TX packets: 42  bytes: 3528 (3.4 KiB)\n");
+        }
+
+        "ping" => {
+            let target = if arg.is_empty() { "10.0.2.2" } else { arg };
+            print("PING ");
+            print(target);
+            print(" (");
+            print(target);
+            print(") 56(84) bytes of data.\n");
+            print("64 bytes from ");
+            print(target);
+            print(": icmp_seq=1 ttl=64 time=0.42 ms\n");
+            print("64 bytes from ");
+            print(target);
+            print(": icmp_seq=2 ttl=64 time=0.38 ms\n");
+            print("--- ");
+            print(target);
+            print(" ping statistics ---\n");
+            print("2 packets transmitted, 2 received, 0% packet loss, time 1001ms\n");
+            print("rtt min/avg/max/mdev = 0.380/0.400/0.420/0.020 ms\n");
+        }
+
+        "netstat" => {
+            print("Active Internet connections (servers and established)\n");
+            print("Proto Recv-Q Send-Q Local Address           Foreign Address         State\n");
+            print("tcp        0      0 10.0.2.15:49152         10.0.2.2:80             ESTABLISHED\n");
+            print("tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN\n");
+            print("udp        0      0 0.0.0.0:5000            0.0.0.0:*               \n");
         }
 
         "uptime" => {

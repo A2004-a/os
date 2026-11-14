@@ -11,6 +11,7 @@ pub mod drivers;
 pub mod fs;
 pub mod ipc;
 pub mod memory;
+pub mod network;
 pub mod objects;
 pub mod panic;
 pub mod process;

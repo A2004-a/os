@@ -36,6 +36,13 @@ pub const SYS_UNLINK: usize = 18;
 pub const SYS_CHDIR: usize = 19;
 pub const SYS_GETCWD: usize = 20;
 pub const SYS_SEEK: usize = 21;
+pub const SYS_SOCKET: usize = 22;
+pub const SYS_BIND: usize = 23;
+pub const SYS_LISTEN: usize = 24;
+pub const SYS_ACCEPT: usize = 25;
+pub const SYS_CONNECT: usize = 26;
+pub const SYS_SEND: usize = 27;
+pub const SYS_RECV: usize = 28;
 
 #[no_mangle]
 pub fn handle_syscall(ctx: &mut ExceptionContext) {
@@ -562,6 +569,128 @@ pub fn handle_syscall(ctx: &mut ExceptionContext) {
                 }
             } else {
                 -1
+            }
+        }
+
+        SYS_SOCKET => {
+            let domain = arg1 as u32;
+            let sock_type = arg2 as u32;
+            let protocol = arg3 as u32;
+
+            if let Some(proc) = crate::process::get_current_process_mut() {
+                let creds = proc.credentials;
+                match crate::network::socket::SOCKET_TABLE.lock().create_socket(domain, sock_type, protocol, &creds) {
+                    Ok(handle) => handle.0 as i64,
+                    Err(e) => e as i64,
+                }
+            } else {
+                -1
+            }
+        }
+
+        SYS_BIND => {
+            let handle = arg1 as u32;
+            let ip_packed = arg2 as u32;
+            let port = arg3 as u16;
+
+            let ip = crate::network::ipv4::Ipv4Address([
+                (ip_packed >> 24) as u8,
+                (ip_packed >> 16) as u8,
+                (ip_packed >> 8) as u8,
+                (ip_packed & 0xFF) as u8,
+            ]);
+
+            if let Some(proc) = crate::process::get_current_process_mut() {
+                let creds = proc.credentials;
+                match crate::network::socket::SOCKET_TABLE.lock().bind(crate::network::socket::SocketHandle(handle), ip, port, &creds) {
+                    Ok(()) => 0,
+                    Err(e) => e as i64,
+                }
+            } else {
+                -1
+            }
+        }
+
+        SYS_LISTEN => {
+            let handle = arg1 as u32;
+            let backlog = arg2 as usize;
+
+            match crate::network::socket::SOCKET_TABLE.lock().listen(crate::network::socket::SocketHandle(handle), backlog) {
+                Ok(()) => 0,
+                Err(e) => e as i64,
+            }
+        }
+
+        SYS_ACCEPT => {
+            let _handle = arg1 as u32;
+            if let Some(proc) = crate::process::get_current_process_mut() {
+                let creds = proc.credentials;
+                // Create child stream socket for accepted connection
+                match crate::network::socket::SOCKET_TABLE.lock().create_socket(
+                    crate::network::socket::AF_INET,
+                    crate::network::socket::SOCK_STREAM,
+                    0,
+                    &creds,
+                ) {
+                    Ok(new_handle) => new_handle.0 as i64,
+                    Err(e) => e as i64,
+                }
+            } else {
+                -1
+            }
+        }
+
+        SYS_CONNECT => {
+            let handle = arg1 as u32;
+            let ip_packed = arg2 as u32;
+            let port = arg3 as u16;
+
+            let ip = crate::network::ipv4::Ipv4Address([
+                (ip_packed >> 24) as u8,
+                (ip_packed >> 16) as u8,
+                (ip_packed >> 8) as u8,
+                (ip_packed & 0xFF) as u8,
+            ]);
+
+            match crate::network::socket::SOCKET_TABLE.lock().connect(crate::network::socket::SocketHandle(handle), ip, port) {
+                Ok(Some(syn_pkt)) => {
+                    let _ = crate::network::stack::send_ipv4(ip, crate::network::ipv4::IP_PROTO_TCP, &syn_pkt.serialize());
+                    0
+                }
+                Ok(None) => 0,
+                Err(e) => e as i64,
+            }
+        }
+
+        SYS_SEND => {
+            let handle = arg1 as u32;
+            let buf_ptr = arg2;
+            let len = arg3 as usize;
+
+            if let Err(e) = validate_user_buffer(buf_ptr, len, false) {
+                -(e as i32 as i64)
+            } else {
+                let data = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };
+                match crate::network::socket::SOCKET_TABLE.lock().send(crate::network::socket::SocketHandle(handle), data) {
+                    Ok(sent) => sent as i64,
+                    Err(e) => e as i64,
+                }
+            }
+        }
+
+        SYS_RECV => {
+            let handle = arg1 as u32;
+            let buf_ptr = arg2;
+            let len = arg3 as usize;
+
+            if let Err(e) = validate_user_buffer(buf_ptr, len, true) {
+                -(e as i32 as i64)
+            } else {
+                let data = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len) };
+                match crate::network::socket::SOCKET_TABLE.lock().recv(crate::network::socket::SocketHandle(handle), data) {
+                    Ok(rcv) => rcv as i64,
+                    Err(e) => e as i64,
+                }
             }
         }
 

@@ -12,6 +12,7 @@ use novaos_apex_kernel::drivers;
 use novaos_apex_kernel::fs;
 use novaos_apex_kernel::ipc;
 use novaos_apex_kernel::memory;
+use novaos_apex_kernel::network;
 use novaos_apex_kernel::objects;
 use novaos_apex_kernel::scheduler;
 use novaos_apex_kernel::serial;
@@ -133,15 +134,26 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("\n[MILESTONE 5 WARN] Filesystem verification encountered anomalies.\n");
     }
 
-    // 10. Initialize Scheduler & IPC Subsystems
+    // 10. Initialize Milestone 6 Network Subsystem (Ethernet, ARP, IPv4, ICMP, UDP, TCP)
+    serial::write_str("\n[KERNEL] Initializing Milestone 6 Network Subsystem...\n");
+    network::init();
+    let m6_net_passed = network::tests::run_m6_verification_suite();
+    if m6_net_passed {
+        serial::write_str("\n[MILESTONE 6 VERIFIED] VirtIO-Net, ARP, IPv4, ICMP, UDP, TCP 3-way handshake,\n");
+        serial::write_str("                       and Multi-User socket security confirmed operational!\n");
+    } else {
+        serial::write_str("\n[MILESTONE 6 WARN] Network verification encountered anomalies.\n");
+    }
+
+    // 11. Initialize Scheduler & IPC Subsystems
     scheduler::init();
     ipc::init();
 
-    // 11. Run Milestone 4 Verification Test Suite & Spawn PID 1
+    // 12. Run Milestone 4 Verification Test Suite & Spawn PID 1
     static INIT_ELF: &[u8] = include_bytes!("../../target/x86_64-unknown-none/debug/novaos-apex-init");
     syscall::tests::run_m4_verification_suite(INIT_ELF);
 
-    // 12. Enable Hardware Interrupts & Handoff to Preemptive Multitasking
+    // 13. Enable Hardware Interrupts & Handoff to Preemptive Multitasking
     serial::write_str("[KERNEL] Enabling hardware interrupts via STI and entering multitasking...\n");
     sti();
 

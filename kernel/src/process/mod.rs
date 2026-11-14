@@ -179,6 +179,8 @@ pub fn create_user_address_space() -> Result<PhysAddr, ProcessError> {
 
     // user_pdpt entry 0 points to kernel's first 1 GiB PD so kernel execution during syscall/interrupt works
     user_pdpt.entries[0] = kernel_pdpt.entries[0];
+    user_pdpt.entries[2] = kernel_pdpt.entries[2]; // 2 GiB - 3 GiB: GOP Framebuffer
+    user_pdpt.entries[3] = kernel_pdpt.entries[3]; // 3 GiB - 4 GiB: PCI MMIO / APIC / BARs
 
     // Higher-half direct map for physical memory access (PML4 entry 256)
     let p4_high_idx = (PHYSICAL_MEMORY_OFFSET >> 39) & 0x1FF;

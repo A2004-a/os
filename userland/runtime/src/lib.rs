@@ -26,6 +26,18 @@ pub const SYS_UNLINK: usize = 18;
 pub const SYS_CHDIR: usize = 19;
 pub const SYS_GETCWD: usize = 20;
 pub const SYS_SEEK: usize = 21;
+pub const SYS_SOCKET: usize = 22;
+pub const SYS_BIND: usize = 23;
+pub const SYS_LISTEN: usize = 24;
+pub const SYS_ACCEPT: usize = 25;
+pub const SYS_CONNECT: usize = 26;
+pub const SYS_SEND: usize = 27;
+pub const SYS_RECV: usize = 28;
+
+pub const AF_INET: u32 = 2;
+pub const SOCK_STREAM: u32 = 1;
+pub const SOCK_DGRAM: u32 = 2;
+pub const SOCK_RAW: u32 = 3;
 
 pub const O_RDONLY: u32 = 0x0001;
 pub const O_WRONLY: u32 = 0x0002;
@@ -448,6 +460,92 @@ pub fn seek(handle: u32, offset: i64, whence: u32) -> Result<u64, i32> {
     };
     if ret >= 0 {
         Ok(ret as u64)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 23. socket
+pub fn socket(domain: u32, sock_type: u32, protocol: u32) -> Result<u32, i32> {
+    let ret = unsafe {
+        syscall3(SYS_SOCKET, domain as u64, sock_type as u64, protocol as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as u32)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 24. bind
+pub fn bind(handle: u32, ip: [u8; 4], port: u16) -> Result<(), i32> {
+    let packed_ip = ((ip[0] as u32) << 24) | ((ip[1] as u32) << 16) | ((ip[2] as u32) << 8) | (ip[3] as u32);
+    let ret = unsafe {
+        syscall3(SYS_BIND, handle as u64, packed_ip as u64, port as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 25. listen
+pub fn listen(handle: u32, backlog: usize) -> Result<(), i32> {
+    let ret = unsafe {
+        syscall2(SYS_LISTEN, handle as u64, backlog as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 26. accept
+pub fn accept(handle: u32) -> Result<u32, i32> {
+    let ret = unsafe {
+        syscall1(SYS_ACCEPT, handle as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as u32)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 27. connect
+pub fn connect(handle: u32, ip: [u8; 4], port: u16) -> Result<(), i32> {
+    let packed_ip = ((ip[0] as u32) << 24) | ((ip[1] as u32) << 16) | ((ip[2] as u32) << 8) | (ip[3] as u32);
+    let ret = unsafe {
+        syscall3(SYS_CONNECT, handle as u64, packed_ip as u64, port as u64)
+    };
+    if ret >= 0 {
+        Ok(())
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 28. send
+pub fn send(handle: u32, data: &[u8]) -> Result<usize, i32> {
+    let ret = unsafe {
+        syscall3(SYS_SEND, handle as u64, data.as_ptr() as u64, data.len() as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as usize)
+    } else {
+        Err(ret as i32)
+    }
+}
+
+// 29. recv
+pub fn recv(handle: u32, buf: &mut [u8]) -> Result<usize, i32> {
+    let ret = unsafe {
+        syscall3(SYS_RECV, handle as u64, buf.as_mut_ptr() as u64, buf.len() as u64)
+    };
+    if ret >= 0 {
+        Ok(ret as usize)
     } else {
         Err(ret as i32)
     }

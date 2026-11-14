@@ -2,6 +2,56 @@
 
 All notable changes to NovaOS Apex are documented in this file.
 
+## [0.6.0] - 2026-11-14 — Milestone 6 (Networking and Multi-User Security)
+
+### Added
+- **MAC & IPv4 Network Abstractions (`kernel/src/network/mac.rs` & `ipv4.rs`):**
+  - `MacAddress` 6-byte hardware address representation with broadcast/multicast detection.
+  - `Ipv4Address` 4-byte dotted-decimal representation with loopback, broadcast, private, and subnet parsing.
+  - RFC 1071 16-bit one's complement Internet checksum implementation.
+  - `Ipv4Header` serialization and validation with TTL decrement, protocol demuxing, and header length verification.
+- **Ethernet II Framing (`kernel/src/network/ethernet.rs`):**
+  - 14-byte Ethernet II MAC frame encapsulation and parsing.
+  - EtherType dispatch for IPv4 (`0x0800`) and ARP (`0x0806`).
+- **Address Resolution Protocol (ARP) (`kernel/src/network/arp.rs`):**
+  - ARP packet structure (hardware type 1 Ethernet, protocol 0x0800 IPv4).
+  - ARP Request generation and ARP Reply processing.
+  - Global in-memory `ARP_CACHE` with dynamic IP-to-MAC resolution.
+- **Internet Control Message Protocol (ICMP) (`kernel/src/network/icmp.rs`):**
+  - ICMP Echo Request (Type 8) generation and Echo Reply (Type 0) processing.
+  - RFC 792 ICMP checksum validation and ping reply turnaround.
+- **User Datagram Protocol (UDP) (`kernel/src/network/udp.rs`):**
+  - 8-byte UDP header encapsulation and extraction.
+  - UDP IPv4 pseudo-header checksum calculation.
+  - Port multiplexing and datagram queue dispatch.
+- **Transmission Control Protocol (TCP) (`kernel/src/network/tcp.rs`):**
+  - Full TCP header serialization and parsing with option headers and window sizing.
+  - TCP pseudo-header checksum verification.
+  - Complete TCP Finite State Machine (FSM): `Closed`, `Listen`, `SynSent`, `SynReceived`, `Established`, `FinWait1`, `FinWait2`, `CloseWait`, `Closing`, `LastAck`, `TimeWait`.
+  - 3-way connection handshake (`SYN` -> `SYN-ACK` -> `ACK`), data streaming with sequence/acknowledgment tracking, and orderly connection teardown (`FIN` -> `ACK`).
+- **BSD Sockets & Socket Table (`kernel/src/network/socket.rs`):**
+  - Socket families: `AF_INET`, `AF_UNIX`.
+  - Socket types: `SOCK_STREAM` (TCP), `SOCK_DGRAM` (UDP), `SOCK_RAW` (Raw packets).
+  - Multi-user port security model: ports < 1024 are restricted to superuser (`UID 0`); non-root processes receive `-EACCES` (-13) when binding.
+  - `SocketTable` with handle allocation, bind, listen, accept, connect, send, and recv.
+- **Network Stack Coordinator (`kernel/src/network/stack.rs`):**
+  - Centralized interface configuration (`eth0`, default IP `10.0.2.15/24`, gateway `10.0.2.2`).
+  - Packet reception pipeline demuxing Ethernet -> ARP / IPv4 -> ICMP / UDP / TCP -> Socket.
+  - VirtIO-Net packet transmission backend.
+- **Network System Calls (`kernel/src/syscall/mod.rs` & `userland/runtime/`):**
+  - Extended native syscall table from 21 to 28 system calls:
+    - `SYS_SOCKET (22)`: create a network communication endpoint.
+    - `SYS_BIND (23)`: bind a local address and port to a socket with privilege validation.
+    - `SYS_LISTEN (24)`: set socket to passive listening mode.
+    - `SYS_ACCEPT (25)`: accept an incoming stream connection.
+    - `SYS_CONNECT (26)`: initiate a connection on a socket.
+    - `SYS_SEND (27)`: transmit data on a connected socket.
+    - `SYS_RECV (28)`: receive data from a connected socket.
+- **Userland Network Utilities (`userland/shell/src/main.rs`):**
+  - `ifconfig`: display network interfaces, MAC addresses, IP addresses, netmasks, and gateway.
+  - `ping <ip>`: transmit ICMP Echo Requests and report round-trip timing.
+  - `netstat`: inspect active socket bindings, connection states, and protocol endpoints.
+
 ## [0.5.0] - 2026-11-14 — Milestone 5 (Files, Storage, and User Profiles)
 
 ### Added
