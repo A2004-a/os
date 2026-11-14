@@ -110,7 +110,7 @@ impl NovaBar {
         }
 
         // 4. Centered Application Island (Running Apps)
-        let app_button_w = 110;
+        let app_button_w = 124;
         let app_button_h = 32;
         let total_apps_w = (windows.len() as i32) * (app_button_w + 8);
         let mut app_x = (screen_w as i32 - total_apps_w) / 2;
@@ -148,10 +148,10 @@ impl NovaBar {
             let icon_rect = Rect::new(app_x + 8, app_y + 9, 14, 14);
             target.fill_rect(icon_rect, icon_col);
 
-            // Window title snippet (max 9 chars)
-            let mut snippet = [b' '; 9];
+            // Window title snippet (max 12 chars)
+            let mut snippet = [b' '; 12];
             let bytes = win.title.as_bytes();
-            let copy_len = bytes.len().min(9);
+            let copy_len = bytes.len().min(12);
             snippet[..copy_len].copy_from_slice(&bytes[..copy_len]);
             let label = core::str::from_utf8(&snippet[..copy_len]).unwrap_or("App");
             let text_col = if is_active { Color::TEXT_PRIMARY } else { Color::TEXT_SECONDARY };

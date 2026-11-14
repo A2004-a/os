@@ -461,14 +461,14 @@ impl DesktopShell {
     }
 
     pub fn spawn_default_apps(&mut self) {
-        // 1. Spawn Nova Files (File Explorer)
-        let w_files = self.compositor.create_window("Nova Files", 80, 70, 560, 360, 0, 1);
+        // 1. Spawn Nova Files (File Explorer) on Left (x: 116, y: 32, 548x656 client)
+        let w_files = self.compositor.create_window("Nova Files", 116, 32, 548, 656, 0, 1);
         if let Some(win) = self.compositor.get_window_mut(w_files) {
             let surf = &mut win.surface;
             let w = surf.width;
             let h = surf.height;
 
-            // Background (Dark Slate)
+            // Background (Dark Slate Mica)
             surf.fill_rect(Rect::new(0, 0, w, h), Color::from_hex(0x161B22));
 
             // Ribbon Toolbar (h: 36)
@@ -491,36 +491,52 @@ impl DesktopShell {
             surf.draw_line(0, 65, w as i32, 65, Color::from_hex(0x30363D));
             draw_text(surf, "This PC > Storage (C:) > users > apex > documents", 12, 43, Color::TEXT_SECONDARY);
 
-            // Left Sidebar (w: 130)
-            let sidebar_w = 130;
-            surf.fill_rect(Rect::new(0, 66, sidebar_w, h - 66), Color::from_hex(0x13171F));
-            surf.draw_line(sidebar_w as i32, 66, sidebar_w as i32, h as i32, Color::from_hex(0x30363D));
+            // Left Navigation Sidebar (w: 110)
+            let sidebar_w = 110;
+            surf.fill_rect(Rect::new(0, 66, sidebar_w, h - 66 - 24), Color::from_hex(0x13171F));
+            surf.draw_line(sidebar_w as i32, 66, sidebar_w as i32, (h - 24) as i32, Color::from_hex(0x30363D));
 
-            let side_items = ["Quick Access", "  Home", "  Downloads", "  Documents", "  Pictures", "This PC", "  Storage (C:)", "  Network"];
-            let mut sy = 76;
+            let side_items = [
+                "QUICK ACCESS",
+                "  Home",
+                "  Downloads",
+                "  Documents",
+                "  Pictures",
+                "  Music",
+                "THIS PC",
+                "  Nova (C:)",
+                "  Data (D:)",
+                "NETWORK",
+                "  Ethernet",
+            ];
+            let mut sy = 74;
             for it in side_items {
                 let is_header = !it.starts_with("  ");
                 let col = if is_header { Color::NOVA_ACCENT } else { Color::TEXT_PRIMARY };
-                draw_text(surf, it, 10, sy, col);
+                draw_text(surf, it, 8, sy, col);
                 sy += 22;
             }
 
             // Main File Table
-            let table_x = sidebar_w as i32 + 12;
+            let table_x = sidebar_w as i32 + 8;
             let table_header_y = 74;
             draw_text(surf, "Name", table_x, table_header_y, Color::TEXT_SECONDARY);
-            draw_text(surf, "Date modified", table_x + 150, table_header_y, Color::TEXT_SECONDARY);
-            draw_text(surf, "Type", table_x + 270, table_header_y, Color::TEXT_SECONDARY);
-            draw_text(surf, "Size", table_x + 360, table_header_y, Color::TEXT_SECONDARY);
+            draw_text(surf, "Date modified", table_x + 116, table_header_y, Color::TEXT_SECONDARY);
+            draw_text(surf, "Type", table_x + 236, table_header_y, Color::TEXT_SECONDARY);
+            draw_text(surf, "Size", table_x + 350, table_header_y, Color::TEXT_SECONDARY);
             surf.draw_line(sidebar_w as i32 + 4, table_header_y + 18, w as i32 - 4, table_header_y + 18, Color::from_hex(0x28303E));
 
             let files = [
-                ("System", "11/14/2026 05:30", "File folder", "--"),
-                ("Projects", "11/14/2026 05:32", "File folder", "--"),
-                ("Kernel.elf", "11/14/2026 05:40", "ELF64 App", "4.8 MB"),
-                ("Config.sys", "11/14/2026 05:42", "Config file", "2.4 KB"),
-                ("Readme.txt", "11/14/2026 05:45", "Text Document", "1.2 KB"),
-                ("Telemetry.log", "11/14/2026 05:50", "Log File", "18.2 KB"),
+                ("System", "11/14 05:30 PM", "File folder", "--"),
+                ("Projects", "11/14 05:32 PM", "File folder", "--"),
+                ("Kernel.elf", "11/14 05:40 PM", "ELF64 App", "4.8 MB"),
+                ("Config.sys", "11/14 05:42 PM", "Config file", "2.4 KB"),
+                ("Readme.txt", "11/14 05:45 PM", "Text Document", "1.2 KB"),
+                ("Telemetry.log", "11/14 05:50 PM", "Log File", "18.2 KB"),
+                ("Packages", "11/14 05:52 PM", "File folder", "--"),
+                ("Drivers", "11/14 05:54 PM", "File folder", "--"),
+                ("Security.key", "11/14 05:55 PM", "Cert Key", "512 B"),
+                ("Wallpaper.bmp", "11/14 05:56 PM", "Bitmap Image", "3.8 MB"),
             ];
             let mut fy = table_header_y + 26;
             for (name, date, ftype, size) in files {
@@ -530,20 +546,20 @@ impl DesktopShell {
                     surf.draw_rect_outline(sel_rect, Color::NOVA_ACCENT, 1);
                 }
                 draw_text(surf, name, table_x, fy, Color::TEXT_PRIMARY);
-                draw_text(surf, date, table_x + 150, fy, Color::TEXT_SECONDARY);
-                draw_text(surf, ftype, table_x + 270, fy, Color::TEXT_SECONDARY);
-                draw_text(surf, size, table_x + 360, fy, Color::TEXT_SECONDARY);
+                draw_text(surf, date, table_x + 116, fy, Color::TEXT_SECONDARY);
+                draw_text(surf, ftype, table_x + 236, fy, Color::TEXT_SECONDARY);
+                draw_text(surf, size, table_x + 350, fy, Color::TEXT_SECONDARY);
                 fy += 24;
             }
 
             // Status bar
-            surf.fill_rect(Rect::new(0, h as i32 - 22, w, 22), Color::from_hex(0x1F242C));
-            surf.draw_line(0, h as i32 - 22, w as i32, h as i32 - 22, Color::from_hex(0x30363D));
-            draw_text(surf, "6 items | 1 item selected (1.2 KB)", 12, h as i32 - 16, Color::TEXT_SECONDARY);
+            surf.fill_rect(Rect::new(0, h as i32 - 24, w, 24), Color::from_hex(0x1F242C));
+            surf.draw_line(0, h as i32 - 24, w as i32, h as i32 - 24, Color::from_hex(0x30363D));
+            draw_text(surf, "10 items | 1 item selected (1.2 KB) | Free: 218 MB", 12, h as i32 - 18, Color::TEXT_SECONDARY);
         }
 
-        // 2. Spawn Nova Terminal
-        let w_term = self.compositor.create_window("Terminal", 340, 140, 640, 420, 0, 1);
+        // 2. Spawn Nova Terminal on Right (x: 686, y: 32, 560x656 client)
+        let w_term = self.compositor.create_window("Terminal", 686, 32, 560, 656, 0, 1);
         if let Some(win) = self.compositor.get_window_mut(w_term) {
             let surf = &mut win.surface;
             let w = surf.width;
@@ -581,7 +597,7 @@ impl DesktopShell {
             ty += 18;
             draw_text(surf, "Memory Tracker:  38 MiB used / 256 MiB total (14.8% allocated)", 12, ty, Color::TEXT_PRIMARY);
             ty += 18;
-            draw_text(surf, "Storage Buses:   /dev/vda (NovaFS), /dev/sda (AHCI), /dev/nvme0n1 (NVMe)", 12, ty, Color::TEXT_PRIMARY);
+            draw_text(surf, "Storage Buses:   NovaFS (/dev/vda), SATA AHCI, NVMe 1.4", 12, ty, Color::TEXT_PRIMARY);
             ty += 18;
             draw_text(surf, "System Drivers:  10 Native First-Party Drivers Armed & Verified", 12, ty, Color::TEXT_PRIMARY);
             ty += 18;
@@ -597,6 +613,13 @@ impl DesktopShell {
             draw_text(surf, "  11/14/2026  05:42 PM             2,480  Config.sys", 12, ty, Color::TEXT_SECONDARY);
             ty += 18;
             draw_text(surf, "  11/14/2026  05:45 PM             1,248  Readme.txt", 12, ty, Color::TEXT_SECONDARY);
+            ty += 18;
+            draw_text(surf, "  11/14/2026  05:50 PM            18,240  Telemetry.log", 12, ty, Color::TEXT_SECONDARY);
+            ty += 24;
+
+            draw_text(surf, "apex@novaos:~$ winver", 12, ty, Color::TEXT_PRIMARY);
+            ty += 18;
+            draw_text(surf, "NovaOS Apex Edition 2026 (Build 22631.105)", 12, ty, Color::TEXT_SECONDARY);
             ty += 24;
 
             // Interactive command prompt with blinking cursor
