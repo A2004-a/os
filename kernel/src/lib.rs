@@ -1,10 +1,14 @@
 //! NovaOS Apex — Bare-Metal Kernel Core Library
-//! Milestone 1: UEFI Boot Handshake, GDT/TSS, IDT, Exceptions & Controlled Fault Verification
+//! Milestone 2: UEFI Boot Handshake, GDT/TSS, IDT, Exceptions, Paging, Memory & Kernel Object Model
 
 #![no_std]
 
+extern crate alloc;
+
 pub mod arch;
 pub mod boot;
+pub mod memory;
+pub mod objects;
 pub mod panic;
 
 pub mod serial {
