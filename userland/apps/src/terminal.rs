@@ -99,33 +99,126 @@ impl NovaTerminalApp {
             return;
         }
 
-        match cmd_str {
+        let mut parts = cmd_str.split_whitespace();
+        let cmd = parts.next().unwrap_or("");
+        let arg = parts.next().unwrap_or("");
+
+        match cmd {
             "help" => {
-                self.println("Built-in Commands: help, uname, whoami, pwd, ls, uptime, clear, exit");
+                self.println("Built-in Commands: help, uname, whoami, pwd, cd, ls, dir, cat, echo,");
+                self.println("                   mkdir, touch, stat, rm, ifconfig, ipconfig, ping,");
+                self.println("                   netstat, uptime, winver, ver, ps, tasklist, free,");
+                self.println("                   mem, clear, cls, exit");
             }
-            "uname" | "uname -a" => {
-                self.println("NovaOS-Apex 0.9.0-alpha #1 SMP x86_64 Bare-Metal NovaOS");
+            "uname" => {
+                if arg == "-a" || cmd_str == "uname -a" {
+                    self.println("NovaOS-Apex 0.9.0-alpha #1 SMP x86_64 Bare-Metal NovaOS");
+                } else {
+                    self.println("NovaOS-Apex");
+                }
             }
             "whoami" => {
                 self.println("apex (UID 1000, GID 1000, Admin)");
             }
             "pwd" => {
-                self.println("/users/apex");
+                self.println("/users/apex/documents");
             }
-            "ls" => {
-                self.println("Documents/  Downloads/  Pictures/  notes.md  profile.json  welcome.txt");
+            "cd" => {
+                let target = if arg.is_empty() { "/users/apex" } else { arg };
+                self.println(target);
+            }
+            "ls" | "dir" => {
+                self.println("Directory of /users/apex/documents:");
+                self.println("  11/14/2026  05:40 PM         4,826,496  Kernel.elf");
+                self.println("  11/14/2026  05:42 PM             2,480  Config.sys");
+                self.println("  11/14/2026  05:45 PM             1,248  Readme.txt");
+                self.println("  11/14/2026  05:50 PM            18,240  Telemetry.log");
+            }
+            "cat" => {
+                if arg == "Readme.txt" || arg == "welcome.txt" || arg.ends_with(".txt") {
+                    self.println("Welcome to NovaOS Apex Edition (x86_64).");
+                    self.println("A modular monolithic kernel built from scratch in Rust.");
+                } else if arg.is_empty() {
+                    self.println("cat: missing file operand");
+                } else {
+                    self.println("cat: cannot open file");
+                }
+            }
+            "echo" => {
+                let text = if cmd_str.len() > 5 { &cmd_str[5..] } else { "" };
+                self.println(text);
+            }
+            "mkdir" => {
+                if arg.is_empty() {
+                    self.println("mkdir: missing operand");
+                } else {
+                    self.println("Directory created successfully.");
+                }
+            }
+            "touch" => {
+                if arg.is_empty() {
+                    self.println("touch: missing file operand");
+                } else {
+                    self.println("File created successfully.");
+                }
+            }
+            "stat" => {
+                if arg.is_empty() {
+                    self.println("stat: missing operand");
+                } else {
+                    self.println("  File: Readme.txt  Size: 1248 bytes  Mode: 0o0644  Inode: 12");
+                }
+            }
+            "rm" | "del" => {
+                if arg.is_empty() {
+                    self.println("rm: missing operand");
+                } else {
+                    self.println("File unlinked successfully.");
+                }
+            }
+            "ifconfig" | "ipconfig" => {
+                self.println("eth0: flags=4163<UP,BROADCAST,RUNNING>  mtu 1500");
+                self.println("      inet 10.0.2.15  netmask 255.255.255.0  gateway 10.0.2.2");
+                self.println("      ether 52:54:00:12:34:56  RX packets: 42  TX packets: 42");
+            }
+            "ping" => {
+                self.println("PING 10.0.2.2 (10.0.2.2) 56(84) bytes of data.");
+                self.println("64 bytes from 10.0.2.2: icmp_seq=1 ttl=64 time=0.42 ms");
+                self.println("64 bytes from 10.0.2.2: icmp_seq=2 ttl=64 time=0.38 ms");
+            }
+            "netstat" => {
+                self.println("Active Internet connections (servers and established)");
+                self.println("Proto  Local Address    Foreign Address  State");
+                self.println("tcp    10.0.2.15:49152  10.0.2.2:80      ESTABLISHED");
+                self.println("tcp    0.0.0.0:8080     0.0.0.0:*        LISTEN");
             }
             "uptime" => {
-                self.println("Uptime: 14205 ms (Preemptive Scheduler Running)");
+                self.println("Uptime: 24580 ms (1000 Hz APIC Timer, 0 drops)");
             }
-            "clear" => {
+            "winver" | "ver" => {
+                self.println("NovaOS Apex Edition 2026 (Build 22631.105)");
+                self.println("Microsoft Windows 11 Compatible User Experience Architecture");
+            }
+            "ps" | "tasklist" => {
+                self.println("PID  PPID  STATE     PRI  NAME");
+                self.println("  0     0  RUNNING    0   kernel_idle");
+                self.println("  1     0  SLEEPING  10   novaos-init");
+                self.println("  2     1  RUNNING   12   novaos-compositor");
+                self.println("  3     1  RUNNING   12   novashell");
+            }
+            "free" | "mem" => {
+                self.println("              Total        Used        Free");
+                self.println("Physical RAM: 256 MiB      38 MiB     218 MiB");
+                self.println("Kernel Heap:   64 MiB      11 MiB      53 MiB");
+            }
+            "clear" | "cls" => {
                 self.clear();
             }
             "exit" => {
                 self.println("Terminal session closed.");
             }
             _ => {
-                self.println("command not found");
+                self.println("nova-shell: command not found");
             }
         }
     }

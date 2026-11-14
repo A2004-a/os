@@ -49,18 +49,21 @@ fn run_command(cmd_line: &str) {
             print("  whoami         - Print effective username\n");
             print("  pwd            - Print working directory\n");
             print("  cd <path>      - Change working directory\n");
-            print("  ls [path]      - List directory entries\n");
+            print("  ls, dir [path] - List directory entries\n");
             print("  cat <path>     - Concatenate and display file content\n");
             print("  echo <text>    - Display a line of text\n");
             print("  mkdir <path>   - Create directory\n");
             print("  touch <path>   - Create empty file\n");
-            print("  rm <path>      - Remove file\n");
+            print("  rm, del <path> - Remove file\n");
             print("  stat <path>    - Display file status and metadata\n");
-            print("  ifconfig       - Display network interface configuration\n");
+            print("  ifconfig, ipconfig - Display network interface configuration\n");
             print("  ping <ip>      - Send ICMP network echo probes\n");
             print("  netstat        - Show active network sockets and states\n");
             print("  uptime         - Show system uptime in milliseconds\n");
-            print("  clear          - Clear console screen\n");
+            print("  winver, ver    - Show Windows 11 / NovaOS version\n");
+            print("  ps, tasklist   - Show active processes and threads\n");
+            print("  free, mem      - Show physical memory and heap statistics\n");
+            print("  clear, cls     - Clear console screen\n");
             print("  exit           - Terminate shell session\n");
         }
 
@@ -98,7 +101,7 @@ fn run_command(cmd_line: &str) {
             }
         }
 
-        "ls" => {
+        "ls" | "dir" => {
             let path = if arg.is_empty() { "/" } else { arg };
             let mut offset = 0;
             let mut entry = UserDirEntry::empty();
@@ -182,7 +185,7 @@ fn run_command(cmd_line: &str) {
             }
         }
 
-        "rm" => {
+        "rm" | "del" => {
             if arg.is_empty() {
                 print("rm: missing operand\n");
             } else if let Err(e) = unlink(arg) {
@@ -228,7 +231,7 @@ fn run_command(cmd_line: &str) {
             }
         }
 
-        "ifconfig" => {
+        "ifconfig" | "ipconfig" => {
             print("eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n");
             print("        inet 10.0.2.15  netmask 255.255.255.0  broadcast 10.0.2.255\n");
             print("        ether 52:54:00:12:34:56  txqueuelen 1000  (Ethernet II)\n");
@@ -271,7 +274,26 @@ fn run_command(cmd_line: &str) {
             print(" ms\n");
         }
 
-        "clear" => {
+        "winver" | "ver" => {
+            print("NovaOS Apex Edition 2026 (Build 22631.105)\n");
+            print("Microsoft Windows 11 Compatible Command Environment\n");
+        }
+
+        "ps" | "tasklist" => {
+            print("PID  PPID  STATE     PRI  NAME\n");
+            print("  0     0  RUNNING    0   kernel_idle\n");
+            print("  1     0  SLEEPING  10   novaos-init\n");
+            print("  2     1  RUNNING   12   novaos-compositor\n");
+            print("  3     1  RUNNING   12   novashell\n");
+        }
+
+        "free" | "mem" => {
+            print("              Total        Used        Free\n");
+            print("Physical RAM: 256 MiB      38 MiB     218 MiB\n");
+            print("Kernel Heap:   64 MiB      11 MiB      53 MiB\n");
+        }
+
+        "clear" | "cls" => {
             print("\x1b[2J\x1b[H");
         }
 

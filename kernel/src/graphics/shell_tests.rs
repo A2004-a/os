@@ -115,8 +115,9 @@ fn test_nova_bar_layout_and_tray() -> bool {
     if bar.hit_test(20, 760, screen_w, screen_h, &windows) != Some(BarAction::ToggleLauncher) {
         return false;
     }
-    // Click on workspace 3 button (x = 60 + 2*30 = 120)
-    if bar.hit_test(130, 770, screen_w, screen_h, &windows) != Some(BarAction::SwitchWorkspace(3)) {
+    // Click on workspace 3 button
+    let ws3 = bar.workspace_button_rect(screen_h, 3);
+    if bar.hit_test(ws3.x + 4, ws3.y + 4, screen_w, screen_h, &windows) != Some(BarAction::SwitchWorkspace(3)) {
         return false;
     }
 

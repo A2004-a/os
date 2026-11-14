@@ -225,7 +225,15 @@ pub extern "C" fn kernel_entry(boot_info_ptr: *const BootInfo) -> ! {
         serial::write_str("[KERNEL WARN] Keyboard & mouse verification encountered failures.\n");
     }
 
-    // 16c. Run Windows 11 Desktop Features Verification Suite (105 Gates)
+    // 16c. Run Comprehensive Terminal & NovaShell Verification Suite (25 Gates)
+    let term_passed = drivers::terminal_tests::run_all_terminal_tests();
+    if term_passed {
+        serial::write_str("[KERNEL] All 25 Terminal & NovaShell functional gates certified!\n");
+    } else {
+        serial::write_str("[KERNEL WARN] Terminal & NovaShell verification encountered failures.\n");
+    }
+
+    // 16d. Run Windows 11 Desktop Features Verification Suite (105 Gates)
     let win105_passed = graphics::windows_features_test::run_all_105_windows_feature_tests();
     if win105_passed {
         serial::write_str("[KERNEL] Windows 11-class desktop subsystem certified with 105 passing features!\n");

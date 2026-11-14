@@ -14,6 +14,7 @@ pub mod nvme;
 pub mod pci;
 pub mod pic;
 pub mod serial;
+pub mod terminal_tests;
 pub mod tests;
 pub mod timer;
 pub mod usb_hid;
